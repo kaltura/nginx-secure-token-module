@@ -38,4 +38,29 @@ Sets the name of cookie
 * **default**: `none`
 * **context**: `http`, `server`, `location`
 
-Sets the file extensions of URIs that should return a cookie
+Defines a set of extensions that will be matched against the URI extension, only URIs whose extension
+is listed will return a cookie
+
+#### akamai_token_uri_filename_prefix
+* **syntax**: `akamai_token_uri_filename_prefix prefix`
+* **default**: `none`
+* **context**: `http`, `server`, `location`
+
+Defines a set of prefixes that will be matched against the URI file name, only URIs whose file name
+starts with one of the defined prefixes will return a cookie
+
+#### akamai_token_expires_time
+* **syntax**: `akamai_token_expires_time time`
+* **default**: `none`
+* **context**: `http`, `server`, `location`
+
+Sets the expiration time of requests that are not tokenized (determines the values of the Cache-Control
+and Expires HTTP headers)
+
+#### akamai_token_tokenized_expires_time
+* **syntax**: `akamai_token_tokenized_expires_time time`
+* **default**: `none`
+* **context**: `http`, `server`, `location`
+
+Sets the expiration time of requests that are tokenized (determines the values of the Cache-Control
+and Expires HTTP headers)
