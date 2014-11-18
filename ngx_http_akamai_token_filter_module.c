@@ -12,46 +12,51 @@ static char *ngx_conf_set_hex_str_slot(ngx_conf_t *cf, ngx_command_t *cmd, void 
 static void *ngx_http_akamai_token_create_loc_conf(ngx_conf_t *cf);
 static char *ngx_http_akamai_token_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child);
 
+ngx_str_t  ngx_http_akamai_token_default_types[] = {
+    ngx_null_string
+};
+
 typedef struct {
+    ngx_flag_t  enable;
 	ngx_str_t 	param_name;
 	ngx_str_t 	key;
 	ngx_uint_t  window;
-    ngx_str_t   extensions;
-	ngx_hash_t  extensions_hash;
 	ngx_array_t* filename_prefixes;
 	time_t 		expires_time;
 	time_t 		tokenized_expires_time;
+    ngx_hash_t  types;
+    ngx_array_t *types_keys;
 } ngx_http_akamai_token_loc_conf_t;
 
 static ngx_command_t  ngx_http_akamai_token_commands[] = {
+    { ngx_string("akamai_token"),
+    NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_FLAG,
+    ngx_conf_set_flag_slot,
+    NGX_HTTP_LOC_CONF_OFFSET,
+    offsetof(ngx_http_akamai_token_loc_conf_t, enable),
+    NULL },
+
 	{ ngx_string("akamai_token_key"),
-	NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+	NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
 	ngx_conf_set_hex_str_slot,
 	NGX_HTTP_LOC_CONF_OFFSET,
 	offsetof(ngx_http_akamai_token_loc_conf_t, key),
 	NULL },
 
 	{ ngx_string("akamai_token_window"),
-	NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+	NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
 	ngx_conf_set_num_slot,
 	NGX_HTTP_LOC_CONF_OFFSET,
 	offsetof(ngx_http_akamai_token_loc_conf_t, window),
 	NULL },
 
 	{ ngx_string("akamai_token_param_name"),
-	NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+	NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
 	ngx_conf_set_str_slot,
 	NGX_HTTP_LOC_CONF_OFFSET,
 	offsetof(ngx_http_akamai_token_loc_conf_t, param_name),
 	NULL },
 	
-    { ngx_string("akamai_token_uri_extens"),
-    NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-    ngx_conf_set_str_slot,
-    NGX_HTTP_LOC_CONF_OFFSET,
-    offsetof(ngx_http_akamai_token_loc_conf_t, extensions),
-    NULL },
-
 	{ ngx_string("akamai_token_uri_filename_prefix"),
     NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
     ngx_conf_set_str_array_slot,
@@ -71,6 +76,13 @@ static ngx_command_t  ngx_http_akamai_token_commands[] = {
     ngx_conf_set_sec_slot,
     NGX_HTTP_LOC_CONF_OFFSET,
     offsetof(ngx_http_akamai_token_loc_conf_t, tokenized_expires_time),
+    NULL },
+
+    { ngx_string("akamai_token_types"),
+    NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_1MORE,
+    ngx_http_types_slot,
+    NGX_HTTP_LOC_CONF_OFFSET,
+    offsetof(ngx_http_akamai_token_loc_conf_t, types_keys),
     NULL },
 	
     ngx_null_command
@@ -176,6 +188,7 @@ ngx_http_akamai_token_create_loc_conf(ngx_conf_t *cf)
     if (conf == NULL) {
         return NGX_CONF_ERROR;
     }
+    conf->enable = NGX_CONF_UNSET;
     conf->window = NGX_CONF_UNSET_UINT;
     conf->filename_prefixes = NGX_CONF_UNSET_PTR;
 	conf->expires_time = NGX_CONF_UNSET;
@@ -183,90 +196,27 @@ ngx_http_akamai_token_create_loc_conf(ngx_conf_t *cf)
     return conf;
 }
 
-static char*
-ngx_http_akamai_token_build_hash(ngx_conf_t *cf, ngx_str_t* input, char* name, ngx_hash_t* output)
-{
-	ngx_hash_key_t* hash_keys;
-	ngx_hash_init_t hash;
-	ngx_str_t cur_string;
-	unsigned string_count;
-	unsigned i = 0;
-	u_char* end_pos;
-	u_char* cur_pos;
-	ngx_int_t rc;
-
-	string_count = 1;
-	end_pos = input->data + input->len;
-	for (cur_pos = input->data; cur_pos < end_pos; cur_pos++)
-	{
-		if (*cur_pos == ',')
-		{
-			string_count++;
-		}
-	}
-	
-	hash_keys = ngx_palloc(cf->pool, sizeof(hash_keys[0]) * string_count);
-	if (hash_keys == NULL)
-	{
-		ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "failed to allocate hash keys");
-		return NGX_CONF_ERROR;
-	}
-
-	cur_string.data = input->data;
-	for (cur_pos = input->data; cur_pos <= end_pos; cur_pos++)
-	{
-		if (cur_pos < end_pos && *cur_pos != ',')
-		{
-			continue;
-		}
-		
-		cur_string.len = cur_pos - cur_string.data;
-		hash_keys[i].key = cur_string;
-		hash_keys[i].key_hash = ngx_hash_key_lc(cur_string.data, cur_string.len);
-		hash_keys[i].value = (void *) 1;
-		i++;
-		
-		cur_string.data = cur_pos + 1;
-	}
-	
-	hash.hash = output;
-	hash.key = ngx_hash_key;
-	hash.max_size = 512;
-	hash.bucket_size = 64;
-	hash.name = name;
-	hash.pool = cf->pool;
-	hash.temp_pool = NULL;
-
-	rc = ngx_hash_init(&hash, hash_keys, i);
-	if (rc != NGX_OK)
-	{
-		ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "ngx_hash_init failed %i", rc);
-		return NGX_CONF_ERROR;
-	}
-	
-	return NGX_CONF_OK;
-}
-
 static char *
 ngx_http_akamai_token_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
 {
     ngx_http_akamai_token_loc_conf_t  *prev = parent;
     ngx_http_akamai_token_loc_conf_t  *conf = child;
-	char* err;
 
+    ngx_conf_merge_value(conf->enable, prev->enable, 0);
 	ngx_conf_merge_uint_value(conf->window, prev->window, 86400);
 	ngx_conf_merge_str_value(conf->param_name, prev->param_name, "__hdnea__");
 	ngx_conf_merge_str_value(conf->key, prev->key, "");
-    ngx_conf_merge_str_value(conf->extensions, prev->extensions, "");
     ngx_conf_merge_ptr_value(conf->filename_prefixes, prev->filename_prefixes, NULL);
     ngx_conf_merge_sec_value(conf->expires_time, prev->expires_time, NGX_CONF_UNSET);
     ngx_conf_merge_sec_value(conf->tokenized_expires_time, prev->tokenized_expires_time, NGX_CONF_UNSET);
-	
-	err = ngx_http_akamai_token_build_hash(cf, &conf->extensions, "extensions_hash", &conf->extensions_hash);
-	if (err != NGX_CONF_OK)
-	{
-		return err;
-	}
+
+    if (ngx_http_merge_types(cf, &conf->types_keys, &conf->types,
+                             &prev->types_keys, &prev->types,
+                             ngx_http_akamai_token_default_types)
+        != NGX_OK)
+    {
+        return NGX_CONF_ERROR;
+    }
 	
     return NGX_CONF_OK;
 }
@@ -434,48 +384,48 @@ ngx_http_akamai_token_header_filter(ngx_http_request_t *r)
     conf = ngx_http_get_module_loc_conf(r, ngx_http_akamai_token_filter_module);
 	
 	// decide whether the token should be added
-    if (conf->key.len == 0 ||
+    if (!conf->enable || 
 		r->headers_out.status != NGX_HTTP_OK ||
-        r != r->main)
+		r != r->main)
+	{
+		return ngx_http_next_header_filter(r);
+	}
+	
+	if (ngx_http_test_content_type(r, &conf->types) == NULL)
     {
         return ngx_http_akamai_token_call_next_filter(r, conf->expires_time);
     }
 
-	if (conf->extensions_hash.size > 0 && 
-		!ngx_hash_find(&conf->extensions_hash, ngx_hash_key_lc(r->exten.data, r->exten.len), r->exten.data, r->exten.len))
-	{
-        return ngx_http_akamai_token_call_next_filter(r, conf->expires_time);
-	}
-	
+	// check the file name
 	last_slash_pos = memrchr(r->uri.data, '/', r->uri.len);
 	if (last_slash_pos == NULL) 
 	{
 		return NGX_ERROR;
 	}
-	
+
 	if (conf->filename_prefixes != NULL)
 	{
 		uri_filename.data = last_slash_pos + 1;
 		uri_filename.len = r->uri.data + r->uri.len - uri_filename.data;
-		
+
 		prefix_matched = 0;
 		for (i = 0; i < conf->filename_prefixes->nelts; i++)
 		{
 			cur_prefix = &((ngx_str_t*)conf->filename_prefixes->elts)[i];
-			if (uri_filename.len >= cur_prefix->len && 
+			if (uri_filename.len >= cur_prefix->len &&
 				ngx_memcmp(uri_filename.data, cur_prefix->data, cur_prefix->len) == 0)
 			{
 				prefix_matched = 1;
 				break;
 			}
 		}
-		
+
 		if (!prefix_matched)
 		{
 			return ngx_http_akamai_token_call_next_filter(r, conf->expires_time);
 		}
 	}
-	
+
 	// get the acl
 	acl_end_pos = last_slash_pos + 1;
 	
