@@ -1,6 +1,6 @@
 # Akamai token module for Nginx
 
-Generates an Akamai v2 token, either as a cookie or as a query string parameter (m3u8 only).
+Generates an Akamai v2 token, either as a cookie or as a query string parameter (m3u8/mpd only).
 
 ## Installation
 
