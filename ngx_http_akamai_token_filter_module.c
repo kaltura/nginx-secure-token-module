@@ -721,7 +721,6 @@ ngx_http_akamai_token_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
 	ngx_chain_t** cur_out;
 	ngx_chain_t* out;
 	ngx_flag_t last_buf = 0;
-	ngx_int_t rc;
 
 	ctx = ngx_http_get_module_ctx(r, ngx_http_akamai_token_filter_module);
 	
