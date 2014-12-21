@@ -54,7 +54,7 @@ typedef struct {
 } ngx_http_akamai_token_loc_conf_t;
 
 struct ngx_http_akamai_token_ctx_s {
-	ngx_buf_t* prefixed_tokens[TOKEN_PREFIX_COUNT];
+	ngx_str_t prefixed_tokens[TOKEN_PREFIX_COUNT];
 	ngx_str_t token;
 	ngx_http_akamai_token_body_processor_t process;
 	off_t processor_context_offset;
@@ -635,24 +635,32 @@ static ngx_buf_t*
 ngx_http_akamai_token_get_token(ngx_http_akamai_token_ctx_t* ctx, ngx_pool_t* pool, int index)
 {
 	ngx_buf_t* b;
+	u_char* p;
 
-	if (ctx->prefixed_tokens[index])
+	if (ctx->prefixed_tokens[index].len == 0)
 	{
-		return ctx->prefixed_tokens[index];
+		ctx->prefixed_tokens[index].data = ngx_palloc(pool, token_prefixes[index].len + ctx->token.len);
+		if (ctx->prefixed_tokens[index].data == NULL)
+		{
+			return NULL;
+		}
+
+		p = ngx_copy(ctx->prefixed_tokens[index].data, token_prefixes[index].data, token_prefixes[index].len);
+		p = ngx_copy(p, ctx->token.data, ctx->token.len);
+
+		ctx->prefixed_tokens[index].len = p - ctx->prefixed_tokens[index].data;
 	}
 
-	b = ngx_palloc(pool, sizeof(*b) + token_prefixes[index].len + ctx->token.len);
+	b = ngx_calloc_buf(pool);
 	if (b == NULL)
 	{
 		return NULL;
 	}
-	ngx_memzero(b, sizeof(*b));
-	b->pos = (u_char*)b + sizeof(*b);
-	b->last = ngx_copy(b->pos, token_prefixes[index].data, token_prefixes[index].len);
-	b->last = ngx_copy(b->last, ctx->token.data, ctx->token.len);
+
+	b->pos = ctx->prefixed_tokens[index].data;
+	b->last = b->pos + ctx->prefixed_tokens[index].len;
 	b->memory = 1;
 
-	ctx->prefixed_tokens[index] = b;
 	return b;
 }
 
