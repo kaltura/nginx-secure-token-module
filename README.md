@@ -90,6 +90,20 @@ Sets the expiration time of requests that are tokenized with a cookie token
 Sets the expiration time of requests that are tokenized with a query string token 
 (determines the values of the Cache-Control and Expires HTTP headers)
 
+#### akamai_token_cache_scope
+* **syntax**: `akamai_token_cache_scope scope`
+* **default**: `public`
+* **context**: `http`, `server`, `location`
+
+Sets the cache scope (public/private) of requests that are not tokenized
+
+#### akamai_token_token_cache_scope
+* **syntax**: `akamai_token_token_cache_scope scope`
+* **default**: `private`
+* **context**: `http`, `server`, `location`
+
+Sets the cache scope (public/private) of requests that are tokenized (query / cookie)
+
 ## Copyright & License
 
 All code in this project is released under the [AGPLv3 license](http://www.gnu.org/licenses/agpl-3.0.html) unless a different license for a particular library is specified in the applicable library path. 
