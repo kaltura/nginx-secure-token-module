@@ -10,6 +10,8 @@
 #include "ngx_http_akamai_token_m3u8.h"
 #include "ngx_http_akamai_token_mpd.h"
 
+#define CACHE_CONTROL_FORMAT "%V, max-age=%T, max-stale=0"
+
 #define TOKEN_FORMAT "st=%uD~exp=%uD~acl=%V*"
 #define HMAC_PARAM "~hmac="
 
@@ -51,6 +53,8 @@ typedef struct {
 	time_t 		expires_time;
 	time_t 		cookie_token_expires_time;
 	time_t 		query_token_expires_time;
+	ngx_str_t	cache_scope;
+	ngx_str_t	token_cache_scope;
 } ngx_http_akamai_token_loc_conf_t;
 
 struct ngx_http_akamai_token_ctx_s {
@@ -133,6 +137,20 @@ static ngx_command_t  ngx_http_akamai_token_commands[] = {
 	ngx_conf_set_sec_slot,
 	NGX_HTTP_LOC_CONF_OFFSET,
 	offsetof(ngx_http_akamai_token_loc_conf_t, query_token_expires_time),
+	NULL },
+	
+	{ ngx_string("akamai_token_cache_scope"),
+	NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
+	ngx_conf_set_str_slot,
+	NGX_HTTP_LOC_CONF_OFFSET,
+	offsetof(ngx_http_akamai_token_loc_conf_t, cache_scope),
+	NULL },
+
+	{ ngx_string("akamai_token_token_cache_scope"),
+	NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
+	ngx_conf_set_str_slot,
+	NGX_HTTP_LOC_CONF_OFFSET,
+	offsetof(ngx_http_akamai_token_loc_conf_t, token_cache_scope),
 	NULL },
 	
     ngx_null_command
@@ -314,6 +332,8 @@ ngx_http_akamai_token_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
 	ngx_conf_merge_sec_value(conf->expires_time, prev->expires_time, NGX_CONF_UNSET);
 	ngx_conf_merge_sec_value(conf->cookie_token_expires_time, prev->cookie_token_expires_time, NGX_CONF_UNSET);
 	ngx_conf_merge_sec_value(conf->query_token_expires_time, prev->query_token_expires_time, NGX_CONF_UNSET);
+	ngx_conf_merge_str_value(conf->cache_scope, prev->cache_scope, "public");
+	ngx_conf_merge_str_value(conf->token_cache_scope, prev->token_cache_scope, "private");
 
     if (ngx_http_merge_types(cf, &conf->types_keys, &conf->types,
                              &prev->types_keys, &prev->types,
@@ -372,7 +392,7 @@ ngx_http_akamai_token_build(ngx_http_request_t* r, ngx_http_akamai_token_loc_con
 // a run down version of ngx_http_set_expires with a few changes
 // (can't use the existing code since the function is static)
 static ngx_int_t
-ngx_http_akamai_token_set_expires(ngx_http_request_t *r, time_t expires_time)
+ngx_http_akamai_token_set_expires(ngx_http_request_t *r, time_t expires_time, ngx_str_t* cache_scope)
 {
     size_t            len;
     time_t            max_age;
@@ -447,25 +467,25 @@ ngx_http_akamai_token_set_expires(ngx_http_request_t *r, time_t expires_time)
     ngx_http_time(expires->value.data, expires_time);
 
     cc->value.data = ngx_pnalloc(r->pool,
-                                 sizeof("max-age=") + NGX_TIME_T_LEN + 1);
+                                 sizeof(CACHE_CONTROL_FORMAT) + cache_scope->len + NGX_TIME_T_LEN + 1);
     if (cc->value.data == NULL) {
         return NGX_ERROR;
     }
 
-    cc->value.len = ngx_sprintf(cc->value.data, "max-age=%T", max_age)
+    cc->value.len = ngx_sprintf(cc->value.data, CACHE_CONTROL_FORMAT, cache_scope, max_age)
                     - cc->value.data;
 
     return NGX_OK;
 }
 
 static ngx_int_t
-ngx_http_akamai_token_call_next_filter(ngx_http_request_t *r, time_t expires)
+ngx_http_akamai_token_call_next_filter(ngx_http_request_t *r, time_t expires, ngx_str_t* cache_scope)
 {
 	ngx_int_t rc;
 
 	if (expires != NGX_CONF_UNSET)
 	{
-		rc = ngx_http_akamai_token_set_expires(r, expires);
+		rc = ngx_http_akamai_token_set_expires(r, expires, cache_scope);
 		if (rc != NGX_OK)
 		{
 			return rc;
@@ -505,7 +525,7 @@ ngx_http_akamai_token_header_filter(ngx_http_request_t *r)
 	
 	if (ngx_http_test_content_type(r, &conf->types) == NULL)
     {
-        return ngx_http_akamai_token_call_next_filter(r, conf->expires_time);
+        return ngx_http_akamai_token_call_next_filter(r, conf->expires_time, &conf->cache_scope);
     }
 
 	// check the file name
@@ -534,7 +554,7 @@ ngx_http_akamai_token_header_filter(ngx_http_request_t *r)
 
 		if (!prefix_matched)
 		{
-			return ngx_http_akamai_token_call_next_filter(r, conf->expires_time);
+			return ngx_http_akamai_token_call_next_filter(r, conf->expires_time, &conf->cache_scope);
 		}
 	}
 
@@ -583,7 +603,7 @@ ngx_http_akamai_token_header_filter(ngx_http_request_t *r)
 		ngx_http_clear_accept_ranges(r);
 		ngx_http_clear_etag(r);
 
-		return ngx_http_akamai_token_call_next_filter(r, conf->query_token_expires_time);
+		return ngx_http_akamai_token_call_next_filter(r, conf->query_token_expires_time, &conf->token_cache_scope);
 	}
 	else
 	{
@@ -597,7 +617,7 @@ ngx_http_akamai_token_header_filter(ngx_http_request_t *r)
 		ngx_str_set(&set_cookie->key, "Set-Cookie");
 		set_cookie->value = token;
 
-		return ngx_http_akamai_token_call_next_filter(r, conf->cookie_token_expires_time);
+		return ngx_http_akamai_token_call_next_filter(r, conf->cookie_token_expires_time, &conf->token_cache_scope);
 	}
 }
 
