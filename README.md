@@ -71,7 +71,7 @@ starts with one of the defined prefixes will return a token
 * **default**: `none`
 * **context**: `http`, `server`, `location`
 
-Sets the expiration time of requests that are not tokenized 
+Sets the expiration time of responses that are not tokenized 
 (determines the values of the Cache-Control and Expires HTTP headers)
 
 #### akamai_token_cookie_token_expires_time
@@ -79,7 +79,7 @@ Sets the expiration time of requests that are not tokenized
 * **default**: `none`
 * **context**: `http`, `server`, `location`
 
-Sets the expiration time of requests that are tokenized with a cookie token 
+Sets the expiration time of responses that are tokenized with a cookie token 
 (determines the values of the Cache-Control and Expires HTTP headers)
 
 #### akamai_token_query_token_expires_time
@@ -87,7 +87,7 @@ Sets the expiration time of requests that are tokenized with a cookie token
 * **default**: `none`
 * **context**: `http`, `server`, `location`
 
-Sets the expiration time of requests that are tokenized with a query string token 
+Sets the expiration time of responses that are tokenized with a query string token 
 (determines the values of the Cache-Control and Expires HTTP headers)
 
 #### akamai_token_cache_scope
@@ -95,14 +95,30 @@ Sets the expiration time of requests that are tokenized with a query string toke
 * **default**: `public`
 * **context**: `http`, `server`, `location`
 
-Sets the cache scope (public/private) of requests that are not tokenized
+Sets the cache scope (public/private) of responses that are not tokenized
 
 #### akamai_token_token_cache_scope
 * **syntax**: `akamai_token_token_cache_scope scope`
 * **default**: `private`
 * **context**: `http`, `server`, `location`
 
-Sets the cache scope (public/private) of requests that are tokenized (query / cookie)
+Sets the cache scope (public/private) of responses that are tokenized (query / cookie)
+
+#### akamai_token_last_modified
+* **syntax**: `akamai_token_last_modified time`
+* **default**: `Sun, 19 Nov 2000 08:52:00 GMT`
+* **context**: `http`, `server`, `location`
+
+Sets the value of the last-modified header of responses that are not tokenized.
+An empty string leaves the value of last-modified unaltered, while the string "now" sets the header to the server current time.
+
+#### akamai_token_token_last_modified
+* **syntax**: `akamai_token_token_last_modified time`
+* **default**: `now`
+* **context**: `http`, `server`, `location`
+
+Sets the value of the last-modified header of responses that are tokenized (query / cookie)
+An empty string leaves the value of last-modified unaltered, while the string "now" sets the header to the server current time.
 
 ## Copyright & License
 
