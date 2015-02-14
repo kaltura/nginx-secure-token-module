@@ -104,6 +104,22 @@ Sets the cache scope (public/private) of requests that are not tokenized
 
 Sets the cache scope (public/private) of requests that are tokenized (query / cookie)
 
+#### akamai_token_last_modified
+* **syntax**: `akamai_token_last_modified time`
+* **default**: `Sun, 19 Nov 2000 08:52:00 GMT`
+* **context**: `http`, `server`, `location`
+
+Sets the value of the last-modified header of requests that are not tokenized.
+An empty string leaves the value of last-modified unaltered, while the string "now" sets the header to the server current time.
+
+#### akamai_token_token_last_modified
+* **syntax**: `akamai_token_token_last_modified time`
+* **default**: `now`
+* **context**: `http`, `server`, `location`
+
+Sets the value of the last-modified header of requests that are tokenized (query / cookie)
+An empty string leaves the value of last-modified unaltered, while the string "now" sets the header to the server current time.
+
 ## Copyright & License
 
 All code in this project is released under the [AGPLv3 license](http://www.gnu.org/licenses/agpl-3.0.html) unless a different license for a particular library is specified in the applicable library path. 

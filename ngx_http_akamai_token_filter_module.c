@@ -55,6 +55,11 @@ typedef struct {
 	time_t 		query_token_expires_time;
 	ngx_str_t	cache_scope;
 	ngx_str_t	token_cache_scope;
+	ngx_str_t	last_modified;
+	ngx_str_t	token_last_modified;
+	time_t		last_modified_time;
+	time_t		token_last_modified_time;
+
 } ngx_http_akamai_token_loc_conf_t;
 
 struct ngx_http_akamai_token_ctx_s {
@@ -153,6 +158,20 @@ static ngx_command_t  ngx_http_akamai_token_commands[] = {
 	offsetof(ngx_http_akamai_token_loc_conf_t, token_cache_scope),
 	NULL },
 	
+	{ ngx_string("akamai_token_last_modified"),
+	NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+	ngx_conf_set_str_slot,
+	NGX_HTTP_LOC_CONF_OFFSET,
+	offsetof(ngx_http_akamai_token_loc_conf_t, last_modified),
+	NULL },
+
+	{ ngx_string("akamai_token_token_last_modified"),
+	NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+	ngx_conf_set_str_slot,
+	NGX_HTTP_LOC_CONF_OFFSET,
+	offsetof(ngx_http_akamai_token_loc_conf_t, token_last_modified),
+	NULL },
+
     ngx_null_command
 };
 	  
@@ -315,10 +334,39 @@ ngx_http_akamai_token_create_loc_conf(ngx_conf_t *cf)
 }
 
 static char *
+ngx_http_akamai_token_init_time(ngx_str_t* str, time_t* time)
+{
+	// now => 0
+	// empty => NGX_CONF_UNSET
+	// other => unix timestamp
+
+	if (str->len == sizeof("now") - 1 &&
+		ngx_strncasecmp(str->data, (u_char *)"now", sizeof("now") - 1) == 0)
+	{
+		*time = 0;
+	}
+	else if (str->len > 0)
+	{
+		*time = ngx_http_parse_time(str->data, str->len);
+		if (*time == NGX_ERROR)
+		{
+			return NGX_CONF_ERROR;
+		}
+	}
+	else
+	{
+		*time = NGX_CONF_UNSET;
+	}
+
+	return NGX_CONF_OK;
+}
+
+static char *
 ngx_http_akamai_token_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
 {
     ngx_http_akamai_token_loc_conf_t  *prev = parent;
     ngx_http_akamai_token_loc_conf_t  *conf = child;
+	char* err;
 
     ngx_conf_merge_value(conf->enable, prev->enable, 0);
 	
@@ -334,6 +382,8 @@ ngx_http_akamai_token_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
 	ngx_conf_merge_sec_value(conf->query_token_expires_time, prev->query_token_expires_time, NGX_CONF_UNSET);
 	ngx_conf_merge_str_value(conf->cache_scope, prev->cache_scope, "public");
 	ngx_conf_merge_str_value(conf->token_cache_scope, prev->token_cache_scope, "private");
+	ngx_conf_merge_str_value(conf->last_modified, prev->last_modified, "Sun, 19 Nov 2000 08:52:00 GMT");
+	ngx_conf_merge_str_value(conf->token_last_modified, prev->token_last_modified, "now");
 
     if (ngx_http_merge_types(cf, &conf->types_keys, &conf->types,
                              &prev->types_keys, &prev->types,
@@ -347,7 +397,19 @@ ngx_http_akamai_token_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
 	{
 		return NGX_CONF_ERROR;
 	}
-	
+
+	err = ngx_http_akamai_token_init_time(&conf->last_modified, &conf->last_modified_time);
+	if (err != NGX_CONF_OK)
+	{
+		return err;
+	}
+
+	err = ngx_http_akamai_token_init_time(&conf->token_last_modified, &conf->token_last_modified_time);
+	if (err != NGX_CONF_OK)
+	{
+		return err;
+	}
+
     return NGX_CONF_OK;
 }
 
@@ -479,8 +541,14 @@ ngx_http_akamai_token_set_expires(ngx_http_request_t *r, time_t expires_time, ng
 }
 
 static ngx_int_t
-ngx_http_akamai_token_call_next_filter(ngx_http_request_t *r, time_t expires, ngx_str_t* cache_scope)
+ngx_http_akamai_token_call_next_filter(
+	ngx_http_request_t *r, 
+	time_t expires, 
+	time_t last_modified, 
+	ngx_str_t* last_modified_str, 
+	ngx_str_t* cache_scope)
 {
+	ngx_table_elt_t *h;
 	ngx_int_t rc;
 
 	if (expires != NGX_CONF_UNSET)
@@ -490,6 +558,39 @@ ngx_http_akamai_token_call_next_filter(ngx_http_request_t *r, time_t expires, ng
 		{
 			return rc;
 		}
+	}
+	
+	if (last_modified == 0)
+	{
+		if (r->headers_out.last_modified != NULL)
+		{
+			r->headers_out.last_modified->hash = 0;
+			r->headers_out.last_modified = NULL;
+		}
+		r->headers_out.last_modified_time = ngx_time();
+	}
+	else if (last_modified != NGX_CONF_UNSET)
+	{
+		if (r->headers_out.last_modified) 
+		{
+			h = r->headers_out.last_modified;
+		}
+		else 
+		{
+			h = ngx_list_push(&r->headers_out.headers);
+			if (h == NULL) 
+			{
+				return NGX_ERROR;
+			}
+
+			r->headers_out.last_modified = h;
+		}
+		h->hash = 1;
+		h->key.data = (u_char*)"Last-Modified";
+		h->key.len = sizeof("Last-Modified") - 1;
+		h->value = *last_modified_str;
+
+		r->headers_out.last_modified_time = last_modified;
 	}
 
 	return ngx_http_next_header_filter(r);
@@ -525,7 +626,12 @@ ngx_http_akamai_token_header_filter(ngx_http_request_t *r)
 	
 	if (ngx_http_test_content_type(r, &conf->types) == NULL)
     {
-        return ngx_http_akamai_token_call_next_filter(r, conf->expires_time, &conf->cache_scope);
+        return ngx_http_akamai_token_call_next_filter(
+			r, 
+			conf->expires_time, 
+			conf->last_modified_time, 
+			&conf->last_modified, 
+			&conf->cache_scope);
     }
 
 	// check the file name
@@ -554,7 +660,12 @@ ngx_http_akamai_token_header_filter(ngx_http_request_t *r)
 
 		if (!prefix_matched)
 		{
-			return ngx_http_akamai_token_call_next_filter(r, conf->expires_time, &conf->cache_scope);
+			return ngx_http_akamai_token_call_next_filter(
+				r, 
+				conf->expires_time, 
+				conf->last_modified_time,
+				&conf->last_modified,
+				&conf->cache_scope);
 		}
 	}
 
@@ -603,7 +714,12 @@ ngx_http_akamai_token_header_filter(ngx_http_request_t *r)
 		ngx_http_clear_accept_ranges(r);
 		ngx_http_clear_etag(r);
 
-		return ngx_http_akamai_token_call_next_filter(r, conf->query_token_expires_time, &conf->token_cache_scope);
+		return ngx_http_akamai_token_call_next_filter(
+			r, 
+			conf->query_token_expires_time, 
+			conf->token_last_modified_time,
+			&conf->token_last_modified,
+			&conf->token_cache_scope);
 	}
 	else
 	{
@@ -617,7 +733,12 @@ ngx_http_akamai_token_header_filter(ngx_http_request_t *r)
 		ngx_str_set(&set_cookie->key, "Set-Cookie");
 		set_cookie->value = token;
 
-		return ngx_http_akamai_token_call_next_filter(r, conf->cookie_token_expires_time, &conf->token_cache_scope);
+		return ngx_http_akamai_token_call_next_filter(
+			r, 
+			conf->cookie_token_expires_time, 
+			conf->token_last_modified_time,
+			&conf->token_last_modified,
+			&conf->token_cache_scope);
 	}
 }
 
