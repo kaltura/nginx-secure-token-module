@@ -544,9 +544,9 @@ static ngx_int_t
 ngx_http_akamai_token_call_next_filter(
 	ngx_http_request_t *r, 
 	time_t expires, 
-	time_t last_modified, 
-	ngx_str_t* last_modified_str, 
-	ngx_str_t* cache_scope)
+	ngx_str_t* cache_scope,
+	time_t last_modified,
+	ngx_str_t* last_modified_str)
 {
 	ngx_table_elt_t *h;
 	ngx_int_t rc;
@@ -629,9 +629,9 @@ ngx_http_akamai_token_header_filter(ngx_http_request_t *r)
         return ngx_http_akamai_token_call_next_filter(
 			r, 
 			conf->expires_time, 
+			&conf->cache_scope,
 			conf->last_modified_time, 
-			&conf->last_modified, 
-			&conf->cache_scope);
+			&conf->last_modified);
     }
 
 	// check the file name
@@ -663,9 +663,9 @@ ngx_http_akamai_token_header_filter(ngx_http_request_t *r)
 			return ngx_http_akamai_token_call_next_filter(
 				r, 
 				conf->expires_time, 
+				&conf->cache_scope, 
 				conf->last_modified_time,
-				&conf->last_modified,
-				&conf->cache_scope);
+				&conf->last_modified);
 		}
 	}
 
@@ -717,9 +717,9 @@ ngx_http_akamai_token_header_filter(ngx_http_request_t *r)
 		return ngx_http_akamai_token_call_next_filter(
 			r, 
 			conf->query_token_expires_time, 
+			&conf->token_cache_scope,
 			conf->token_last_modified_time,
-			&conf->token_last_modified,
-			&conf->token_cache_scope);
+			&conf->token_last_modified);
 	}
 	else
 	{
@@ -736,9 +736,9 @@ ngx_http_akamai_token_header_filter(ngx_http_request_t *r)
 		return ngx_http_akamai_token_call_next_filter(
 			r, 
 			conf->cookie_token_expires_time, 
+			&conf->token_cache_scope,
 			conf->token_last_modified_time,
-			&conf->token_last_modified,
-			&conf->token_cache_scope);
+			&conf->token_last_modified);
 	}
 }
 
