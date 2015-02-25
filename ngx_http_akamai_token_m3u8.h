@@ -11,7 +11,6 @@
 
 // typedefs
 typedef struct {
-	ngx_flag_t tokenize_segments;
 	int state;
 	u_char last_url_char;
 	size_t tag_name_len;
