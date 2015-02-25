@@ -60,6 +60,8 @@ typedef struct {
 	time_t		last_modified_time;
 	time_t		token_last_modified_time;
 
+	processor_conf_t processor_conf;
+	
 } ngx_http_akamai_token_loc_conf_t;
 
 struct ngx_http_akamai_token_ctx_s {
@@ -107,6 +109,13 @@ static ngx_command_t  ngx_http_akamai_token_commands[] = {
 	ngx_conf_set_flag_slot,
 	NGX_HTTP_LOC_CONF_OFFSET,
 	offsetof(ngx_http_akamai_token_loc_conf_t, avoid_cookies),
+	NULL },
+
+	{ ngx_string("akamai_token_tokenize_segments"),
+	NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_FLAG,
+	ngx_conf_set_flag_slot,
+	NGX_HTTP_LOC_CONF_OFFSET,
+	offsetof(ngx_http_akamai_token_loc_conf_t, processor_conf.tokenize_segments),
 	NULL },
 
 	{ ngx_string("akamai_token_types"),
@@ -330,6 +339,7 @@ ngx_http_akamai_token_create_loc_conf(ngx_conf_t *cf)
 	conf->expires_time = NGX_CONF_UNSET;
 	conf->cookie_token_expires_time = NGX_CONF_UNSET;
 	conf->query_token_expires_time = NGX_CONF_UNSET;
+	conf->processor_conf.tokenize_segments = NGX_CONF_UNSET;
 	return conf;
 }
 
@@ -385,6 +395,8 @@ ngx_http_akamai_token_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
 	ngx_conf_merge_str_value(conf->last_modified, prev->last_modified, "Sun, 19 Nov 2000 08:52:00 GMT");
 	ngx_conf_merge_str_value(conf->token_last_modified, prev->token_last_modified, "now");
 
+    ngx_conf_merge_value(conf->processor_conf.tokenize_segments, prev->processor_conf.tokenize_segments, 1);
+	
     if (ngx_http_merge_types(cf, &conf->types_keys, &conf->types,
                              &prev->types_keys, &prev->types,
                              ngx_http_akamai_token_default_types)
@@ -866,6 +878,7 @@ ngx_http_akamai_token_add_token(
 static ngx_int_t
 ngx_http_akamai_token_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
 {
+	ngx_http_akamai_token_loc_conf_t *conf;
 	ngx_http_akamai_token_ctx_t* ctx;
 	ngx_chain_t** cur_out;
 	ngx_chain_t* out;
@@ -878,6 +891,8 @@ ngx_http_akamai_token_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
 		return ngx_http_next_body_filter(r, in);
 	}
 
+	conf = ngx_http_get_module_loc_conf(r, ngx_http_akamai_token_filter_module);
+	
 	cur_out = &out;
 
 	for (; in != NULL; in = in->next)
@@ -890,6 +905,7 @@ ngx_http_akamai_token_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
 		last_buf |= in->buf->last_buf;
 
 		cur_out = ctx->process(
+			&conf->processor_conf,
 			in->buf,
 			ctx,
 			(u_char*)ctx + ctx->processor_context_offset,
