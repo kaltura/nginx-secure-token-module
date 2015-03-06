@@ -1,4 +1,4 @@
-#include "ngx_http_akamai_token_m3u8.h"
+#include "ngx_http_secure_token_m3u8.h"
 
 static u_char encryption_key_tag[] = "EXT-X-KEY";
 static u_char uri_attr_name[] = "URI";
@@ -21,11 +21,11 @@ enum {
 // 1         2      36      2   34              6
 
 ngx_chain_t** 
-ngx_http_akamai_token_m3u8_processor(
+ngx_http_secure_token_m3u8_processor(
 	processor_conf_t* conf,
 	ngx_buf_t *in, 
-	ngx_http_akamai_token_ctx_t* root_ctx,
-	ngx_http_akamai_token_m3u8_ctx_t* ctx, 
+	ngx_http_secure_token_ctx_t* root_ctx,
+	ngx_http_secure_token_m3u8_ctx_t* ctx, 
 	ngx_pool_t* pool, 
 	ngx_chain_t** out)
 {
@@ -126,7 +126,7 @@ ngx_http_akamai_token_m3u8_processor(
 					ctx->attr_name_len == sizeof(uri_attr_name) - 1 &&
 					ngx_memcmp(ctx->attr_name, uri_attr_name, sizeof(uri_attr_name) - 1) == 0)
 				{
-					out = ngx_http_akamai_token_add_token(
+					out = ngx_http_secure_token_add_token(
 						root_ctx, pool, &last_sent, cur_pos, ctx->state == STATE_ATTR_QUOTED_VALUE_WITH_QUERY, ctx->last_url_char, out);
 					if (out == NULL)
 					{
@@ -181,7 +181,7 @@ ngx_http_akamai_token_m3u8_processor(
 				break;
 			}
 
-			out = ngx_http_akamai_token_add_token(
+			out = ngx_http_secure_token_add_token(
 				root_ctx, pool, &last_sent, cur_pos, ctx->state == STATE_URL_WITH_QUERY, ctx->last_url_char, out);
 			if (out == NULL)
 			{
@@ -195,7 +195,7 @@ ngx_http_akamai_token_m3u8_processor(
 
 	if (cur_pos > last_sent)
 	{
-		out = ngx_http_akamai_token_add_to_chain(pool, out, last_sent, cur_pos, 1, 0);
+		out = ngx_http_secure_token_add_to_chain(pool, out, last_sent, cur_pos, 1, 0);
 		if (out == NULL)
 		{
 			return NULL;
