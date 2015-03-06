@@ -1,5 +1,5 @@
-#ifndef _ngx_http_secure_token_M3U8_H_INCLUDED_
-#define _ngx_http_secure_token_M3U8_H_INCLUDED_
+#ifndef _NGX_HTTP_SECURE_TOKEN_M3U8_H_INCLUDED_
+#define _NGX_HTTP_SECURE_TOKEN_M3U8_H_INCLUDED_
 
 // includes
 #include <ngx_core.h>
@@ -29,4 +29,4 @@ ngx_http_secure_token_m3u8_processor(
 	ngx_pool_t* pool,
 	ngx_chain_t** out);
 
-#endif // _ngx_http_secure_token_M3U8_H_INCLUDED_
+#endif // _NGX_HTTP_SECURE_TOKEN_M3U8_H_INCLUDED_

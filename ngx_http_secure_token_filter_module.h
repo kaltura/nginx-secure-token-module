@@ -1,5 +1,5 @@
-#ifndef _ngx_http_secure_token_FILTER_MODULE_H_INCLUDED_
-#define _ngx_http_secure_token_FILTER_MODULE_H_INCLUDED_
+#ifndef _NGX_HTTP_SECURE_TOKEN_FILTER_MODULE_H_INCLUDED_
+#define _NGX_HTTP_SECURE_TOKEN_FILTER_MODULE_H_INCLUDED_
 
 // includes
 #include <ngx_core.h>
@@ -40,4 +40,4 @@ ngx_http_secure_token_add_token(
 	u_char last_url_char,
 	ngx_chain_t** out);
 
-#endif // _ngx_http_secure_token_FILTER_MODULE_H_INCLUDED_
+#endif // _NGX_HTTP_SECURE_TOKEN_FILTER_MODULE_H_INCLUDED_
