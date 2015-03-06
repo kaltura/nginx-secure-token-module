@@ -1,5 +1,5 @@
-#ifndef _NGX_HTTP_AKAMAI_TOKEN_FILTER_MODULE_H_INCLUDED_
-#define _NGX_HTTP_AKAMAI_TOKEN_FILTER_MODULE_H_INCLUDED_
+#ifndef _NGX_HTTP_SECURE_TOKEN_FILTER_MODULE_H_INCLUDED_
+#define _NGX_HTTP_SECURE_TOKEN_FILTER_MODULE_H_INCLUDED_
 
 // includes
 #include <ngx_core.h>
@@ -9,20 +9,20 @@ typedef struct {
 	ngx_flag_t tokenize_segments;
 } processor_conf_t;
 
-struct ngx_http_akamai_token_ctx_s;
-typedef struct ngx_http_akamai_token_ctx_s ngx_http_akamai_token_ctx_t;
+struct ngx_http_secure_token_ctx_s;
+typedef struct ngx_http_secure_token_ctx_s ngx_http_secure_token_ctx_t;
 
-typedef ngx_chain_t** (*ngx_http_akamai_token_body_processor_t)(
+typedef ngx_chain_t** (*ngx_http_secure_token_body_processor_t)(
 	processor_conf_t* conf,
 	ngx_buf_t *in, 
-	ngx_http_akamai_token_ctx_t* root_ctx,
+	ngx_http_secure_token_ctx_t* root_ctx,
 	void* ctx, 
 	ngx_pool_t* pool, 
 	ngx_chain_t** out);
 
 // functions
 ngx_chain_t**
-ngx_http_akamai_token_add_to_chain(
+ngx_http_secure_token_add_to_chain(
 	ngx_pool_t* pool, 
 	ngx_chain_t** out, 
 	u_char* start, 
@@ -31,8 +31,8 @@ ngx_http_akamai_token_add_to_chain(
 	ngx_flag_t last_buf);
 
 ngx_chain_t**
-ngx_http_akamai_token_add_token(
-	ngx_http_akamai_token_ctx_t* ctx, 
+ngx_http_secure_token_add_token(
+	ngx_http_secure_token_ctx_t* ctx, 
 	ngx_pool_t* pool,
 	u_char** last_sent,
 	u_char* cur_pos,
@@ -40,4 +40,4 @@ ngx_http_akamai_token_add_token(
 	u_char last_url_char,
 	ngx_chain_t** out);
 
-#endif // _NGX_HTTP_AKAMAI_TOKEN_FILTER_MODULE_H_INCLUDED_
+#endif // _NGX_HTTP_SECURE_TOKEN_FILTER_MODULE_H_INCLUDED_

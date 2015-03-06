@@ -6,9 +6,9 @@
 #include <openssl/hmac.h>
 #include <openssl/evp.h>
 
-#include "ngx_http_akamai_token_filter_module.h"
-#include "ngx_http_akamai_token_m3u8.h"
-#include "ngx_http_akamai_token_mpd.h"
+#include "ngx_http_secure_token_filter_module.h"
+#include "ngx_http_secure_token_m3u8.h"
+#include "ngx_http_secure_token_mpd.h"
 
 #define CACHE_CONTROL_FORMAT "%V, max-age=%T, max-stale=0"
 
@@ -16,8 +16,8 @@
 #define HMAC_PARAM "~hmac="
 
 static char *ngx_conf_set_hex_str_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
-static void *ngx_http_akamai_token_create_loc_conf(ngx_conf_t *cf);
-static char *ngx_http_akamai_token_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child);
+static void *ngx_http_secure_token_create_loc_conf(ngx_conf_t *cf);
+static char *ngx_http_secure_token_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child);
 
 enum {
 	TOKEN_PREFIX_NONE,
@@ -33,7 +33,7 @@ static ngx_str_t token_prefixes[TOKEN_PREFIX_COUNT] = {
 	ngx_string("&"),
 };
 
-ngx_str_t  ngx_http_akamai_token_default_types[] = {
+ngx_str_t  ngx_http_secure_token_default_types[] = {
     ngx_null_string
 };
 
@@ -62,133 +62,133 @@ typedef struct {
 
 	processor_conf_t processor_conf;
 	
-} ngx_http_akamai_token_loc_conf_t;
+} ngx_http_secure_token_loc_conf_t;
 
-struct ngx_http_akamai_token_ctx_s {
+struct ngx_http_secure_token_ctx_s {
 	ngx_str_t prefixed_tokens[TOKEN_PREFIX_COUNT];
 	ngx_str_t token;
-	ngx_http_akamai_token_body_processor_t process;
+	ngx_http_secure_token_body_processor_t process;
 	off_t processor_context_offset;
 	union {
-		ngx_http_akamai_token_m3u8_ctx_t m3u8;
-		ngx_http_akamai_token_mpd_ctx_t mpd;
+		ngx_http_secure_token_m3u8_ctx_t m3u8;
+		ngx_http_secure_token_mpd_ctx_t mpd;
 	} u;
 };
 
-static ngx_command_t  ngx_http_akamai_token_commands[] = {
-    { ngx_string("akamai_token"),
+static ngx_command_t  ngx_http_secure_token_commands[] = {
+    { ngx_string("secure_token"),
     NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_FLAG,
     ngx_conf_set_flag_slot,
     NGX_HTTP_LOC_CONF_OFFSET,
-    offsetof(ngx_http_akamai_token_loc_conf_t, enable),
+    offsetof(ngx_http_secure_token_loc_conf_t, enable),
     NULL },
 
-	{ ngx_string("akamai_token_key"),
+	{ ngx_string("secure_token_key"),
 	NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
 	ngx_conf_set_hex_str_slot,
 	NGX_HTTP_LOC_CONF_OFFSET,
-	offsetof(ngx_http_akamai_token_loc_conf_t, key),
+	offsetof(ngx_http_secure_token_loc_conf_t, key),
 	NULL },
 
-	{ ngx_string("akamai_token_window"),
+	{ ngx_string("secure_token_window"),
 	NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
 	ngx_conf_set_num_slot,
 	NGX_HTTP_LOC_CONF_OFFSET,
-	offsetof(ngx_http_akamai_token_loc_conf_t, window),
+	offsetof(ngx_http_secure_token_loc_conf_t, window),
 	NULL },
 
-	{ ngx_string("akamai_token_param_name"),
+	{ ngx_string("secure_token_param_name"),
 	NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
 	ngx_conf_set_str_slot,
 	NGX_HTTP_LOC_CONF_OFFSET,
-	offsetof(ngx_http_akamai_token_loc_conf_t, param_name),
+	offsetof(ngx_http_secure_token_loc_conf_t, param_name),
 	NULL },
 	
-	{ ngx_string("akamai_token_avoid_cookies"),
+	{ ngx_string("secure_token_avoid_cookies"),
 	NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_FLAG,
 	ngx_conf_set_flag_slot,
 	NGX_HTTP_LOC_CONF_OFFSET,
-	offsetof(ngx_http_akamai_token_loc_conf_t, avoid_cookies),
+	offsetof(ngx_http_secure_token_loc_conf_t, avoid_cookies),
 	NULL },
 
-	{ ngx_string("akamai_token_tokenize_segments"),
+	{ ngx_string("secure_token_tokenize_segments"),
 	NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_FLAG,
 	ngx_conf_set_flag_slot,
 	NGX_HTTP_LOC_CONF_OFFSET,
-	offsetof(ngx_http_akamai_token_loc_conf_t, processor_conf.tokenize_segments),
+	offsetof(ngx_http_secure_token_loc_conf_t, processor_conf.tokenize_segments),
 	NULL },
 
-	{ ngx_string("akamai_token_types"),
+	{ ngx_string("secure_token_types"),
 	NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_1MORE,
 	ngx_http_types_slot,
 	NGX_HTTP_LOC_CONF_OFFSET,
-	offsetof(ngx_http_akamai_token_loc_conf_t, types_keys),
+	offsetof(ngx_http_secure_token_loc_conf_t, types_keys),
 	NULL },
 
-	{ ngx_string("akamai_token_uri_filename_prefix"),
+	{ ngx_string("secure_token_uri_filename_prefix"),
     NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
     ngx_conf_set_str_array_slot,
     NGX_HTTP_LOC_CONF_OFFSET,
-    offsetof(ngx_http_akamai_token_loc_conf_t, filename_prefixes),
+    offsetof(ngx_http_secure_token_loc_conf_t, filename_prefixes),
     NULL },
 
-    { ngx_string("akamai_token_expires_time"),
+    { ngx_string("secure_token_expires_time"),
     NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
     ngx_conf_set_sec_slot,
     NGX_HTTP_LOC_CONF_OFFSET,
-    offsetof(ngx_http_akamai_token_loc_conf_t, expires_time),
+    offsetof(ngx_http_secure_token_loc_conf_t, expires_time),
     NULL },
 
-    { ngx_string("akamai_token_cookie_token_expires_time"),
+    { ngx_string("secure_token_cookie_token_expires_time"),
     NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
     ngx_conf_set_sec_slot,
     NGX_HTTP_LOC_CONF_OFFSET,
-	offsetof(ngx_http_akamai_token_loc_conf_t, cookie_token_expires_time),
+	offsetof(ngx_http_secure_token_loc_conf_t, cookie_token_expires_time),
     NULL },
 
-	{ ngx_string("akamai_token_query_token_expires_time"),
+	{ ngx_string("secure_token_query_token_expires_time"),
 	NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 	ngx_conf_set_sec_slot,
 	NGX_HTTP_LOC_CONF_OFFSET,
-	offsetof(ngx_http_akamai_token_loc_conf_t, query_token_expires_time),
+	offsetof(ngx_http_secure_token_loc_conf_t, query_token_expires_time),
 	NULL },
 	
-	{ ngx_string("akamai_token_cache_scope"),
+	{ ngx_string("secure_token_cache_scope"),
 	NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
 	ngx_conf_set_str_slot,
 	NGX_HTTP_LOC_CONF_OFFSET,
-	offsetof(ngx_http_akamai_token_loc_conf_t, cache_scope),
+	offsetof(ngx_http_secure_token_loc_conf_t, cache_scope),
 	NULL },
 
-	{ ngx_string("akamai_token_token_cache_scope"),
+	{ ngx_string("secure_token_token_cache_scope"),
 	NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
 	ngx_conf_set_str_slot,
 	NGX_HTTP_LOC_CONF_OFFSET,
-	offsetof(ngx_http_akamai_token_loc_conf_t, token_cache_scope),
+	offsetof(ngx_http_secure_token_loc_conf_t, token_cache_scope),
 	NULL },
 	
-	{ ngx_string("akamai_token_last_modified"),
+	{ ngx_string("secure_token_last_modified"),
 	NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 	ngx_conf_set_str_slot,
 	NGX_HTTP_LOC_CONF_OFFSET,
-	offsetof(ngx_http_akamai_token_loc_conf_t, last_modified),
+	offsetof(ngx_http_secure_token_loc_conf_t, last_modified),
 	NULL },
 
-	{ ngx_string("akamai_token_token_last_modified"),
+	{ ngx_string("secure_token_token_last_modified"),
 	NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 	ngx_conf_set_str_slot,
 	NGX_HTTP_LOC_CONF_OFFSET,
-	offsetof(ngx_http_akamai_token_loc_conf_t, token_last_modified),
+	offsetof(ngx_http_secure_token_loc_conf_t, token_last_modified),
 	NULL },
 
     ngx_null_command
 };
 	  
-static ngx_int_t ngx_http_akamai_token_filter_init(ngx_conf_t *cf);
+static ngx_int_t ngx_http_secure_token_filter_init(ngx_conf_t *cf);
 
-static ngx_http_module_t  ngx_http_akamai_token_filter_module_ctx = {
+static ngx_http_module_t  ngx_http_secure_token_filter_module_ctx = {
     NULL,                                  /* preconfiguration */
-    ngx_http_akamai_token_filter_init,     /* postconfiguration */
+    ngx_http_secure_token_filter_init,     /* postconfiguration */
 
     NULL,                                  /* create main configuration */
     NULL,                                  /* init main configuration */
@@ -196,14 +196,14 @@ static ngx_http_module_t  ngx_http_akamai_token_filter_module_ctx = {
     NULL,                                  /* create server configuration */
     NULL,                                  /* merge server configuration */
 
-    ngx_http_akamai_token_create_loc_conf, /* create location configuration */
-    ngx_http_akamai_token_merge_loc_conf   /* merge location configuration */
+    ngx_http_secure_token_create_loc_conf, /* create location configuration */
+    ngx_http_secure_token_merge_loc_conf   /* merge location configuration */
 };
 
-ngx_module_t  ngx_http_akamai_token_filter_module = {
+ngx_module_t  ngx_http_secure_token_filter_module = {
     NGX_MODULE_V1,
-    &ngx_http_akamai_token_filter_module_ctx, /* module context */
-    ngx_http_akamai_token_commands,        /* module directives */
+    &ngx_http_secure_token_filter_module_ctx, /* module context */
+    ngx_http_secure_token_commands,        /* module directives */
     NGX_HTTP_MODULE,                       /* module type */
     NULL,                                  /* init master */
     NULL,                                  /* init module */
@@ -220,17 +220,17 @@ static ngx_http_output_body_filter_pt    ngx_http_next_body_filter;
 
 typedef struct {
 	ngx_str_t content_type;
-	ngx_http_akamai_token_body_processor_t process;
+	ngx_http_secure_token_body_processor_t process;
 	off_t processor_context_offset;
 } body_processor_t;
 
 static body_processor_t body_processors[] = {
-	{ ngx_string("application/vnd.apple.mpegurl"),	(ngx_http_akamai_token_body_processor_t)ngx_http_akamai_token_m3u8_processor,	offsetof(ngx_http_akamai_token_ctx_t, u.m3u8) },
-	{ ngx_string("application/dash+xml"),			(ngx_http_akamai_token_body_processor_t)ngx_http_akamai_token_mpd_processor,	offsetof(ngx_http_akamai_token_ctx_t, u.mpd) },
+	{ ngx_string("application/vnd.apple.mpegurl"),	(ngx_http_secure_token_body_processor_t)ngx_http_secure_token_m3u8_processor,	offsetof(ngx_http_secure_token_ctx_t, u.m3u8) },
+	{ ngx_string("application/dash+xml"),			(ngx_http_secure_token_body_processor_t)ngx_http_secure_token_mpd_processor,	offsetof(ngx_http_secure_token_ctx_t, u.mpd) },
 };
 
 static ngx_int_t
-ngx_http_akamai_token_init_processors_hash(ngx_conf_t *cf, ngx_http_akamai_token_loc_conf_t* conf)
+ngx_http_secure_token_init_processors_hash(ngx_conf_t *cf, ngx_http_secure_token_loc_conf_t* conf)
 {
 	ngx_hash_key_t hash_keys[sizeof(body_processors) / sizeof(body_processors[0])];
 	ngx_hash_init_t hash;
@@ -324,11 +324,11 @@ ngx_conf_set_hex_str_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 }
 
 static void *
-ngx_http_akamai_token_create_loc_conf(ngx_conf_t *cf)
+ngx_http_secure_token_create_loc_conf(ngx_conf_t *cf)
 {
-    ngx_http_akamai_token_loc_conf_t  *conf;
+    ngx_http_secure_token_loc_conf_t  *conf;
 
-    conf = ngx_pcalloc(cf->pool, sizeof(ngx_http_akamai_token_loc_conf_t));
+    conf = ngx_pcalloc(cf->pool, sizeof(ngx_http_secure_token_loc_conf_t));
     if (conf == NULL) {
         return NGX_CONF_ERROR;
     }
@@ -344,7 +344,7 @@ ngx_http_akamai_token_create_loc_conf(ngx_conf_t *cf)
 }
 
 static char *
-ngx_http_akamai_token_init_time(ngx_str_t* str, time_t* time)
+ngx_http_secure_token_init_time(ngx_str_t* str, time_t* time)
 {
 	// now => 0
 	// empty => NGX_CONF_UNSET
@@ -372,10 +372,10 @@ ngx_http_akamai_token_init_time(ngx_str_t* str, time_t* time)
 }
 
 static char *
-ngx_http_akamai_token_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
+ngx_http_secure_token_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
 {
-    ngx_http_akamai_token_loc_conf_t  *prev = parent;
-    ngx_http_akamai_token_loc_conf_t  *conf = child;
+    ngx_http_secure_token_loc_conf_t  *prev = parent;
+    ngx_http_secure_token_loc_conf_t  *conf = child;
 	char* err;
 
     ngx_conf_merge_value(conf->enable, prev->enable, 0);
@@ -399,24 +399,24 @@ ngx_http_akamai_token_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
 	
     if (ngx_http_merge_types(cf, &conf->types_keys, &conf->types,
                              &prev->types_keys, &prev->types,
-                             ngx_http_akamai_token_default_types)
+                             ngx_http_secure_token_default_types)
         != NGX_OK)
     {
         return NGX_CONF_ERROR;
     }
 
-	if (ngx_http_akamai_token_init_processors_hash(cf, conf) != NGX_OK)
+	if (ngx_http_secure_token_init_processors_hash(cf, conf) != NGX_OK)
 	{
 		return NGX_CONF_ERROR;
 	}
 
-	err = ngx_http_akamai_token_init_time(&conf->last_modified, &conf->last_modified_time);
+	err = ngx_http_secure_token_init_time(&conf->last_modified, &conf->last_modified_time);
 	if (err != NGX_CONF_OK)
 	{
 		return err;
 	}
 
-	err = ngx_http_akamai_token_init_time(&conf->token_last_modified, &conf->token_last_modified_time);
+	err = ngx_http_secure_token_init_time(&conf->token_last_modified, &conf->token_last_modified_time);
 	if (err != NGX_CONF_OK)
 	{
 		return err;
@@ -426,7 +426,7 @@ ngx_http_akamai_token_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
 }
 
 static ngx_int_t
-ngx_http_akamai_token_build(ngx_http_request_t* r, ngx_http_akamai_token_loc_conf_t  *conf, ngx_str_t* acl, ngx_str_t* result)
+ngx_http_secure_token_build_akamai_v2(ngx_http_request_t* r, ngx_http_secure_token_loc_conf_t  *conf, ngx_str_t* acl, ngx_str_t* result)
 {
 	time_t current_time = ngx_time();
     u_char hash[EVP_MAX_MD_SIZE];
@@ -466,7 +466,7 @@ ngx_http_akamai_token_build(ngx_http_request_t* r, ngx_http_akamai_token_loc_con
 // a run down version of ngx_http_set_expires with a few changes
 // (can't use the existing code since the function is static)
 static ngx_int_t
-ngx_http_akamai_token_set_expires(ngx_http_request_t *r, time_t expires_time, ngx_str_t* cache_scope)
+ngx_http_secure_token_set_expires(ngx_http_request_t *r, time_t expires_time, ngx_str_t* cache_scope)
 {
     size_t            len;
     time_t            max_age;
@@ -553,7 +553,7 @@ ngx_http_akamai_token_set_expires(ngx_http_request_t *r, time_t expires_time, ng
 }
 
 static ngx_int_t
-ngx_http_akamai_token_call_next_filter(
+ngx_http_secure_token_call_next_filter(
 	ngx_http_request_t *r, 
 	time_t expires, 
 	ngx_str_t* cache_scope,
@@ -565,7 +565,7 @@ ngx_http_akamai_token_call_next_filter(
 
 	if (expires != NGX_CONF_UNSET)
 	{
-		rc = ngx_http_akamai_token_set_expires(r, expires, cache_scope);
+		rc = ngx_http_secure_token_set_expires(r, expires, cache_scope);
 		if (rc != NGX_OK)
 		{
 			return rc;
@@ -609,10 +609,10 @@ ngx_http_akamai_token_call_next_filter(
 }
 
 static ngx_int_t
-ngx_http_akamai_token_header_filter(ngx_http_request_t *r)
+ngx_http_secure_token_header_filter(ngx_http_request_t *r)
 {
-    ngx_http_akamai_token_loc_conf_t  *conf;
-	ngx_http_akamai_token_ctx_t* ctx;
+    ngx_http_secure_token_loc_conf_t  *conf;
+	ngx_http_secure_token_ctx_t* ctx;
 	body_processor_t* processor = NULL;
 	ngx_table_elt_t  *set_cookie;
 	ngx_flag_t prefix_matched;
@@ -626,7 +626,7 @@ ngx_http_akamai_token_header_filter(ngx_http_request_t *r)
 	u_char* acl_end_pos;
 	u_char* comma_pos;
 
-    conf = ngx_http_get_module_loc_conf(r, ngx_http_akamai_token_filter_module);
+    conf = ngx_http_get_module_loc_conf(r, ngx_http_secure_token_filter_module);
 	
 	// decide whether the token should be added
     if (!conf->enable || 
@@ -638,7 +638,7 @@ ngx_http_akamai_token_header_filter(ngx_http_request_t *r)
 	
 	if (ngx_http_test_content_type(r, &conf->types) == NULL)
     {
-        return ngx_http_akamai_token_call_next_filter(
+        return ngx_http_secure_token_call_next_filter(
 			r, 
 			conf->expires_time, 
 			&conf->cache_scope,
@@ -672,7 +672,7 @@ ngx_http_akamai_token_header_filter(ngx_http_request_t *r)
 
 		if (!prefix_matched)
 		{
-			return ngx_http_akamai_token_call_next_filter(
+			return ngx_http_secure_token_call_next_filter(
 				r, 
 				conf->expires_time, 
 				&conf->cache_scope, 
@@ -693,7 +693,7 @@ ngx_http_akamai_token_header_filter(ngx_http_request_t *r)
 	acl.len = acl_end_pos - r->uri.data;
 
 	// build the token
-	rc = ngx_http_akamai_token_build(r, conf, &acl, &token);
+	rc = ngx_http_secure_token_build_akamai_v2(r, conf, &acl, &token);
 	if (rc != NGX_OK)
 	{
 		return rc;
@@ -718,7 +718,7 @@ ngx_http_akamai_token_header_filter(ngx_http_request_t *r)
 		ctx->process = processor->process;
 		ctx->processor_context_offset = processor->processor_context_offset;
 
-		ngx_http_set_ctx(r, ctx, ngx_http_akamai_token_filter_module);
+		ngx_http_set_ctx(r, ctx, ngx_http_secure_token_filter_module);
 
 		r->filter_need_in_memory = 1;
 
@@ -726,7 +726,7 @@ ngx_http_akamai_token_header_filter(ngx_http_request_t *r)
 		ngx_http_clear_accept_ranges(r);
 		ngx_http_clear_etag(r);
 
-		return ngx_http_akamai_token_call_next_filter(
+		return ngx_http_secure_token_call_next_filter(
 			r, 
 			conf->query_token_expires_time, 
 			&conf->token_cache_scope,
@@ -745,7 +745,7 @@ ngx_http_akamai_token_header_filter(ngx_http_request_t *r)
 		ngx_str_set(&set_cookie->key, "Set-Cookie");
 		set_cookie->value = token;
 
-		return ngx_http_akamai_token_call_next_filter(
+		return ngx_http_secure_token_call_next_filter(
 			r, 
 			conf->cookie_token_expires_time, 
 			&conf->token_cache_scope,
@@ -755,7 +755,7 @@ ngx_http_akamai_token_header_filter(ngx_http_request_t *r)
 }
 
 ngx_chain_t**
-ngx_http_akamai_token_add_to_chain(ngx_pool_t* pool, ngx_chain_t** out, u_char* start, u_char* end, ngx_flag_t memory, ngx_flag_t last_buf)
+ngx_http_secure_token_add_to_chain(ngx_pool_t* pool, ngx_chain_t** out, u_char* start, u_char* end, ngx_flag_t memory, ngx_flag_t last_buf)
 {
 	ngx_chain_t* cl;
 	ngx_buf_t* b;
@@ -785,7 +785,7 @@ ngx_http_akamai_token_add_to_chain(ngx_pool_t* pool, ngx_chain_t** out, u_char* 
 }
 
 static ngx_buf_t* 
-ngx_http_akamai_token_get_token(ngx_http_akamai_token_ctx_t* ctx, ngx_pool_t* pool, int index)
+ngx_http_secure_token_get_token(ngx_http_secure_token_ctx_t* ctx, ngx_pool_t* pool, int index)
 {
 	ngx_buf_t* b;
 	u_char* p;
@@ -818,8 +818,8 @@ ngx_http_akamai_token_get_token(ngx_http_akamai_token_ctx_t* ctx, ngx_pool_t* po
 }
 
 ngx_chain_t**
-ngx_http_akamai_token_add_token(
-	ngx_http_akamai_token_ctx_t* ctx, 
+ngx_http_secure_token_add_token(
+	ngx_http_secure_token_ctx_t* ctx, 
 	ngx_pool_t* pool,
 	u_char** last_sent,
 	u_char* cur_pos,
@@ -832,7 +832,7 @@ ngx_http_akamai_token_add_token(
 
 	if (cur_pos > *last_sent)
 	{
-		out = ngx_http_akamai_token_add_to_chain(pool, out, *last_sent, cur_pos, 1, 0);
+		out = ngx_http_secure_token_add_to_chain(pool, out, *last_sent, cur_pos, 1, 0);
 		if (out == NULL)
 		{
 			return NULL;
@@ -863,7 +863,7 @@ ngx_http_akamai_token_add_token(
 		token_prefix = TOKEN_PREFIX_QUESTION;
 	}
 
-	cl->buf = ngx_http_akamai_token_get_token(ctx, pool, token_prefix);
+	cl->buf = ngx_http_secure_token_get_token(ctx, pool, token_prefix);
 	if (cl->buf == NULL)
 	{
 		return NULL;
@@ -876,22 +876,22 @@ ngx_http_akamai_token_add_token(
 }
 
 static ngx_int_t
-ngx_http_akamai_token_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
+ngx_http_secure_token_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
 {
-	ngx_http_akamai_token_loc_conf_t *conf;
-	ngx_http_akamai_token_ctx_t* ctx;
+	ngx_http_secure_token_loc_conf_t *conf;
+	ngx_http_secure_token_ctx_t* ctx;
 	ngx_chain_t** cur_out;
 	ngx_chain_t* out;
 	ngx_flag_t last_buf = 0;
 
-	ctx = ngx_http_get_module_ctx(r, ngx_http_akamai_token_filter_module);
+	ctx = ngx_http_get_module_ctx(r, ngx_http_secure_token_filter_module);
 	
 	if (ctx == NULL || in == NULL)
 	{
 		return ngx_http_next_body_filter(r, in);
 	}
 
-	conf = ngx_http_get_module_loc_conf(r, ngx_http_akamai_token_filter_module);
+	conf = ngx_http_get_module_loc_conf(r, ngx_http_secure_token_filter_module);
 	
 	cur_out = &out;
 
@@ -919,7 +919,7 @@ ngx_http_akamai_token_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
 
 	if (last_buf)
 	{
-		cur_out = ngx_http_akamai_token_add_to_chain(r->pool, cur_out, NULL, NULL, 0, 1);
+		cur_out = ngx_http_secure_token_add_to_chain(r->pool, cur_out, NULL, NULL, 0, 1);
 		if (cur_out == NULL)
 		{
 			return NGX_ERROR;
@@ -932,13 +932,13 @@ ngx_http_akamai_token_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
 }
 
 static ngx_int_t
-ngx_http_akamai_token_filter_init(ngx_conf_t *cf)
+ngx_http_secure_token_filter_init(ngx_conf_t *cf)
 {
     ngx_http_next_header_filter = ngx_http_top_header_filter;
-    ngx_http_top_header_filter = ngx_http_akamai_token_header_filter;
+    ngx_http_top_header_filter = ngx_http_secure_token_header_filter;
 
     ngx_http_next_body_filter = ngx_http_top_body_filter;
-    ngx_http_top_body_filter = ngx_http_akamai_token_body_filter;	
+    ngx_http_top_body_filter = ngx_http_secure_token_body_filter;	
 	
     return NGX_OK;
 }
