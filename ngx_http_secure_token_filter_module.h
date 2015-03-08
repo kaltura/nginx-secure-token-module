@@ -3,17 +3,14 @@
 
 // includes
 #include <ngx_core.h>
+#include "ngx_http_secure_token_conf.h"
 
 // typedefs
-typedef struct {
-	ngx_flag_t tokenize_segments;
-} processor_conf_t;
-
 struct ngx_http_secure_token_ctx_s;
 typedef struct ngx_http_secure_token_ctx_s ngx_http_secure_token_ctx_t;
 
 typedef ngx_chain_t** (*ngx_http_secure_token_body_processor_t)(
-	processor_conf_t* conf,
+	ngx_http_secure_token_processor_conf_t* conf,
 	ngx_buf_t *in, 
 	ngx_http_secure_token_ctx_t* root_ctx,
 	void* ctx, 
