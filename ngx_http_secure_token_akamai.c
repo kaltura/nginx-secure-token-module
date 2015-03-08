@@ -44,9 +44,9 @@ ngx_http_secure_token_akamai_build(
 	ngx_str_t* result)
 {
 	time_t current_time = ngx_time();
-    u_char hash[EVP_MAX_MD_SIZE];
+	u_char hash[EVP_MAX_MD_SIZE];
 	unsigned hash_len;
-    HMAC_CTX hmac;
+	HMAC_CTX hmac;
 	ngx_str_t signed_part;
 	size_t result_size;
 	u_char* p;
@@ -66,9 +66,22 @@ ngx_http_secure_token_akamai_build(
 	p = ngx_sprintf(p, TOKEN_FORMAT, current_time, current_time + conf->window, acl);
 	signed_part.len = p - signed_part.data;
 	
-	HMAC_Init(&hmac, conf->akamai.key.data, conf->akamai.key.len, EVP_sha256());
-    HMAC_Update(&hmac, signed_part.data, signed_part.len);
-    HMAC_Final(&hmac, hash, &hash_len);
+	HMAC_CTX_init(&hmac);
+
+	if (!HMAC_Init(&hmac, conf->akamai.key.data, conf->akamai.key.len, EVP_sha256()))
+	{
+		goto error;
+	}
+	if (!HMAC_Update(&hmac, signed_part.data, signed_part.len))
+	{
+		goto error;
+	}
+	if (!HMAC_Final(&hmac, hash, &hash_len))
+	{
+		goto error;
+	}
+
+	HMAC_CTX_cleanup(&hmac);
 
 	p = ngx_copy(p, HMAC_PARAM, sizeof(HMAC_PARAM) - 1);
 	p = ngx_hex_dump(p, hash, hash_len);
@@ -76,4 +89,9 @@ ngx_http_secure_token_akamai_build(
 	
 	result->len = p - result->data;
 	return NGX_OK;
+
+error:
+
+	HMAC_CTX_cleanup(&hmac);
+	return NGX_ERROR;
 }

@@ -39,7 +39,7 @@ Sets the token parameter name (either the name of the cookie or the query string
 * **default**: `none`
 * **context**: `http`, `server`, `location`
 
-Sets the file name of private key (PEM file)
+Sets the file name of the private key (PEM file)
 
 #### secure_token_cloudfront_key_pair_id
 * **syntax**: `secure_token_cloudfront_key_pair_id id`

@@ -32,7 +32,7 @@ static ngx_str_t token_prefixes[TOKEN_PREFIX_COUNT] = {
 };
 
 ngx_str_t  ngx_http_secure_token_default_types[] = {
-    ngx_null_string
+	ngx_null_string
 };
 
 struct ngx_http_secure_token_ctx_s {
@@ -47,12 +47,12 @@ struct ngx_http_secure_token_ctx_s {
 };
 
 static ngx_command_t  ngx_http_secure_token_commands[] = {
-    { ngx_string("secure_token"),
-    NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-    ngx_http_secure_token_command,
-    NGX_HTTP_LOC_CONF_OFFSET,
-    offsetof(ngx_http_secure_token_loc_conf_t, build_token),
-    NULL },
+	{ ngx_string("secure_token"),
+	NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
+	ngx_http_secure_token_command,
+	NGX_HTTP_LOC_CONF_OFFSET,
+	offsetof(ngx_http_secure_token_loc_conf_t, build_token),
+	NULL },
 
 	{ ngx_string("secure_token_window"),
 	NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
@@ -83,25 +83,25 @@ static ngx_command_t  ngx_http_secure_token_commands[] = {
 	NULL },
 
 	{ ngx_string("secure_token_uri_filename_prefix"),
-    NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-    ngx_conf_set_str_array_slot,
-    NGX_HTTP_LOC_CONF_OFFSET,
-    offsetof(ngx_http_secure_token_loc_conf_t, filename_prefixes),
-    NULL },
+	NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
+	ngx_conf_set_str_array_slot,
+	NGX_HTTP_LOC_CONF_OFFSET,
+	offsetof(ngx_http_secure_token_loc_conf_t, filename_prefixes),
+	NULL },
 
-    { ngx_string("secure_token_expires_time"),
-    NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-    ngx_conf_set_sec_slot,
-    NGX_HTTP_LOC_CONF_OFFSET,
-    offsetof(ngx_http_secure_token_loc_conf_t, expires_time),
-    NULL },
+	{ ngx_string("secure_token_expires_time"),
+	NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
+	ngx_conf_set_sec_slot,
+	NGX_HTTP_LOC_CONF_OFFSET,
+	offsetof(ngx_http_secure_token_loc_conf_t, expires_time),
+	NULL },
 
-    { ngx_string("secure_token_cookie_token_expires_time"),
-    NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-    ngx_conf_set_sec_slot,
-    NGX_HTTP_LOC_CONF_OFFSET,
+	{ ngx_string("secure_token_cookie_token_expires_time"),
+	NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
+	ngx_conf_set_sec_slot,
+	NGX_HTTP_LOC_CONF_OFFSET,
 	offsetof(ngx_http_secure_token_loc_conf_t, cookie_token_expires_time),
-    NULL },
+	NULL },
 
 	{ ngx_string("secure_token_query_token_expires_time"),
 	NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
@@ -141,7 +141,7 @@ static ngx_command_t  ngx_http_secure_token_commands[] = {
 #include "ngx_http_secure_token_akamai_commands.h"
 #include "ngx_http_secure_token_cloudfront_commands.h"
 
-    ngx_null_command
+	ngx_null_command
 };
 	  
 static ngx_int_t ngx_http_secure_token_filter_init(ngx_conf_t *cf);
@@ -313,14 +313,14 @@ ngx_conf_set_hex_str_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 static void *
 ngx_http_secure_token_create_loc_conf(ngx_conf_t *cf)
 {
-    ngx_http_secure_token_loc_conf_t  *conf;
+	ngx_http_secure_token_loc_conf_t  *conf;
 
-    conf = ngx_pcalloc(cf->pool, sizeof(ngx_http_secure_token_loc_conf_t));
-    if (conf == NULL) {
-        return NGX_CONF_ERROR;
-    }
+	conf = ngx_pcalloc(cf->pool, sizeof(ngx_http_secure_token_loc_conf_t));
+	if (conf == NULL) {
+		return NGX_CONF_ERROR;
+	}
 	conf->build_token = NGX_CONF_UNSET_PTR;
-    conf->window = NGX_CONF_UNSET_UINT;
+	conf->window = NGX_CONF_UNSET_UINT;
 	conf->avoid_cookies = NGX_CONF_UNSET;
 	conf->filename_prefixes = NGX_CONF_UNSET_PTR;
 	conf->expires_time = NGX_CONF_UNSET;
@@ -365,11 +365,11 @@ ngx_http_secure_token_init_time(ngx_str_t* str, time_t* time)
 static char *
 ngx_http_secure_token_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
 {
-    ngx_http_secure_token_loc_conf_t  *prev = parent;
-    ngx_http_secure_token_loc_conf_t  *conf = child;
+	ngx_http_secure_token_loc_conf_t  *prev = parent;
+	ngx_http_secure_token_loc_conf_t  *conf = child;
 	char* err;
 
-    ngx_conf_merge_ptr_value(conf->build_token, prev->build_token, NULL);
+	ngx_conf_merge_ptr_value(conf->build_token, prev->build_token, NULL);
 	
 	ngx_conf_merge_uint_value(conf->window, prev->window, 86400);
 	ngx_conf_merge_value(conf->avoid_cookies, prev->avoid_cookies, 1);
@@ -384,15 +384,15 @@ ngx_http_secure_token_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
 	ngx_conf_merge_str_value(conf->last_modified, prev->last_modified, "Sun, 19 Nov 2000 08:52:00 GMT");
 	ngx_conf_merge_str_value(conf->token_last_modified, prev->token_last_modified, "now");
 
-    ngx_conf_merge_value(conf->processor_conf.tokenize_segments, prev->processor_conf.tokenize_segments, 1);
+	ngx_conf_merge_value(conf->processor_conf.tokenize_segments, prev->processor_conf.tokenize_segments, 1);
 	
-    if (ngx_http_merge_types(cf, &conf->types_keys, &conf->types,
-                             &prev->types_keys, &prev->types,
-                             ngx_http_secure_token_default_types)
-        != NGX_OK)
-    {
-        return NGX_CONF_ERROR;
-    }
+	if (ngx_http_merge_types(cf, &conf->types_keys, &conf->types,
+								&prev->types_keys, &prev->types,
+								ngx_http_secure_token_default_types)
+		!= NGX_OK)
+	{
+		return NGX_CONF_ERROR;
+	}
 
 	if (ngx_http_secure_token_init_processors_hash(cf, conf) != NGX_OK)
 	{
@@ -423,7 +423,7 @@ ngx_http_secure_token_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
 		return err;
 	}
 	
-    return NGX_CONF_OK;
+	return NGX_CONF_OK;
 }
 
 // a run down version of ngx_http_set_expires with a few changes
@@ -592,7 +592,7 @@ ngx_http_secure_token_header_filter(ngx_http_request_t *r)
     conf = ngx_http_get_module_loc_conf(r, ngx_http_secure_token_filter_module);
 	
 	// decide whether the token should be added
-    if (conf->build_token == NULL || 
+	if (conf->build_token == NULL || 
 		r->headers_out.status != NGX_HTTP_OK ||
 		r != r->main)
 	{
@@ -600,14 +600,14 @@ ngx_http_secure_token_header_filter(ngx_http_request_t *r)
 	}
 	
 	if (ngx_http_test_content_type(r, &conf->types) == NULL)
-    {
-        return ngx_http_secure_token_call_next_filter(
+	{
+		return ngx_http_secure_token_call_next_filter(
 			r, 
 			conf->expires_time, 
 			&conf->cache_scope,
 			conf->last_modified_time, 
 			&conf->last_modified);
-    }
+	}
 
 	// check the file name
 	last_slash_pos = memrchr(r->uri.data, '/', r->uri.len);
@@ -897,11 +897,11 @@ ngx_http_secure_token_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
 static ngx_int_t
 ngx_http_secure_token_filter_init(ngx_conf_t *cf)
 {
-    ngx_http_next_header_filter = ngx_http_top_header_filter;
-    ngx_http_top_header_filter = ngx_http_secure_token_header_filter;
+	ngx_http_next_header_filter = ngx_http_top_header_filter;
+	ngx_http_top_header_filter = ngx_http_secure_token_header_filter;
 
-    ngx_http_next_body_filter = ngx_http_top_body_filter;
-    ngx_http_top_body_filter = ngx_http_secure_token_body_filter;	
+	ngx_http_next_body_filter = ngx_http_top_body_filter;
+	ngx_http_top_body_filter = ngx_http_secure_token_body_filter;	
 	
-    return NGX_OK;
+	return NGX_OK;
 }

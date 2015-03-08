@@ -42,7 +42,7 @@ ngx_http_secure_token_cloudfront_merge_conf(
 		}
 	}
 
-	if (conf->private_key_file.len)
+	if (conf->private_key_file.len != 0)
 	{
 		in = BIO_new_file((char *) conf->private_key_file.data, "r");
 		if (in == NULL) 
@@ -64,7 +64,7 @@ ngx_http_secure_token_cloudfront_merge_conf(
 	
 // copied from ngx_string with 2 changes:
 //	1. changed the charset: + => -, / => ~, = => _
-//	2. changed 
+//	2. changed the interface to get a u_char* dest pointer and return the write end position
 
 static u_char*
 ngx_encode_base64_internal_cloudfront(u_char *d, ngx_str_t *src, const u_char *basis, ngx_uint_t padding)
@@ -104,7 +104,7 @@ ngx_encode_base64_internal_cloudfront(u_char *d, ngx_str_t *src, const u_char *b
         }
     }
 
-	return d;
+    return d;
 }
 
 static u_char*
