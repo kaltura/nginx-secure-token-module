@@ -3,7 +3,7 @@
 
 #include <ngx_http.h>
 #include "ngx_http_secure_token_akamai_conf.h"
-#include "ngx_http_secure_token_cloud_front_conf.h"
+#include "ngx_http_secure_token_cloudfront_conf.h"
 
 struct ngx_http_secure_token_loc_conf_s;
 typedef struct ngx_http_secure_token_loc_conf_s ngx_http_secure_token_loc_conf_t;
@@ -41,7 +41,7 @@ struct ngx_http_secure_token_loc_conf_s {
 
 	ngx_http_secure_token_build_t build_token;
 	ngx_http_secure_token_akamai_conf_t akamai;
-	ngx_http_secure_token_cloud_front_conf_t cloud_front;
+	ngx_http_secure_token_cloudfront_conf_t cloudfront;
 };
 
 #endif // _NGX_HTTP_SECURE_TOKEN_CONF_H_INCLUDED_

@@ -4,7 +4,7 @@
 #include <ctype.h>
 
 #include "ngx_http_secure_token_filter_module.h"
-#include "ngx_http_secure_token_cloud_front.h"
+#include "ngx_http_secure_token_cloudfront.h"
 #include "ngx_http_secure_token_akamai.h"
 #include "ngx_http_secure_token_conf.h"
 #include "ngx_http_secure_token_m3u8.h"
@@ -139,7 +139,7 @@ static ngx_command_t  ngx_http_secure_token_commands[] = {
 	NULL },
 
 #include "ngx_http_secure_token_akamai_commands.h"
-#include "ngx_http_secure_token_cloud_front_commands.h"
+#include "ngx_http_secure_token_cloudfront_commands.h"
 
     ngx_null_command
 };
@@ -236,15 +236,15 @@ ngx_http_secure_token_command(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 	{
 		secure_token_conf->build_token = ngx_http_secure_token_akamai_build;
 	}
-	else if (ngx_strcasecmp(value[1].data, (u_char *) "cloud_front") == 0) 
+	else if (ngx_strcasecmp(value[1].data, (u_char *) "cloudfront") == 0) 
 	{
-		secure_token_conf->build_token = ngx_http_secure_token_cloud_front_build;
+		secure_token_conf->build_token = ngx_http_secure_token_cloudfront_build;
 	}
 	else 
 	{
 		ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
 			"invalid value \"%s\" in \"%s\" directive, "
-			"it must be \"akamai\" or \"cloud_front\"",
+			"it must be \"akamai\" or \"cloudfront\"",
 			value[1].data, cmd->name.data);
 		return NGX_CONF_ERROR;
 	}
@@ -329,7 +329,7 @@ ngx_http_secure_token_create_loc_conf(ngx_conf_t *cf)
 	conf->processor_conf.tokenize_segments = NGX_CONF_UNSET;
 	
 	ngx_http_secure_token_akamai_create_conf(cf, &conf->akamai);
-	ngx_http_secure_token_cloud_front_create_conf(cf, &conf->cloud_front);
+	ngx_http_secure_token_cloudfront_create_conf(cf, &conf->cloudfront);
 	
 	return conf;
 }
@@ -417,7 +417,7 @@ ngx_http_secure_token_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
 		return err;
 	}
 
-	err = ngx_http_secure_token_cloud_front_merge_conf(cf, conf, &conf->cloud_front, &prev->cloud_front);
+	err = ngx_http_secure_token_cloudfront_merge_conf(cf, conf, &conf->cloudfront, &prev->cloudfront);
 	if (err != NGX_CONF_OK)
 	{
 		return err;

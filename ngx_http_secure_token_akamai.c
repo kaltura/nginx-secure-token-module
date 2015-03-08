@@ -23,6 +23,16 @@ ngx_http_secure_token_akamai_merge_conf(
 	ngx_conf_merge_str_value(conf->key, prev->key, "");
 	ngx_conf_merge_str_value(conf->param_name, prev->param_name, "__hdnea__");
 
+	if (base->build_token == ngx_http_secure_token_akamai_build)
+	{
+		if (conf->key.len == 0)
+		{
+			ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+				"\"secure_token_akamai_key\" is mandatory for akamai tokens");
+			return NGX_CONF_ERROR;
+		}
+	}
+
 	return NGX_CONF_OK;
 }
 

@@ -1,6 +1,7 @@
 # Secure token module for Nginx
 
-Generates an Akamai v2 token, either as a cookie or as a query string parameter (m3u8/mpd only).
+Generates CDN tokens, either as a cookie or as a query string parameter (m3u8/mpd only).
+Currently supports Akamai v2 tokens, and Amazon CloudFront tokens.
 
 ## Installation
 
@@ -13,18 +14,39 @@ Requires OpenSSL.
 ## Configuration
 
 #### secure_token
-* **syntax**: `secure_token on/off`
-* **default**: `off`
+* **syntax**: `secure_token type`
+* **default**: `none`
 * **context**: `http`, `server`, `location`
 
-Enables / disables the module
+Enables token generation of the requested type, supported types are: akamai, cloudfront
 
-#### secure_token_key
+#### secure_token_akamai_key
 * **syntax**: `secure_token_key key_hex`
 * **default**: `empty`
 * **context**: `http`, `server`, `location`
 
 Sets the secret key
+
+#### secure_token_akamai_param_name
+* **syntax**: `secure_token_param_name name`
+* **default**: `__hdnea__`
+* **context**: `http`, `server`, `location`
+
+Sets the token parameter name (either the name of the cookie or the query string parameter)
+
+#### secure_token_cloudfront_private_key_file
+* **syntax**: `secure_token_cloudfront_private_key_file filename`
+* **default**: `none`
+* **context**: `http`, `server`, `location`
+
+Sets the file name of private key (PEM file)
+
+#### secure_token_cloudfront_key_pair_id
+* **syntax**: `secure_token_cloudfront_key_pair_id id`
+* **default**: `none`
+* **context**: `http`, `server`, `location`
+
+Sets the key pair id
 
 #### secure_token_window
 * **syntax**: `secure_token_window window`
@@ -32,13 +54,6 @@ Sets the secret key
 * **context**: `http`, `server`, `location`
 
 Sets the validity time of the token in seconds
-
-#### secure_token_param_name
-* **syntax**: `secure_token_param_name name`
-* **default**: `__hdnea__`
-* **context**: `http`, `server`, `location`
-
-Sets the token parameter name (either the name of the cookie or the query string parameter)
 
 #### secure_token_avoid_cookies
 * **syntax**: `secure_token_avoid_cookies on/off`

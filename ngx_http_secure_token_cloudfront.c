@@ -1,4 +1,4 @@
-#include "ngx_http_secure_token_cloud_front.h"
+#include "ngx_http_secure_token_cloudfront.h"
 #include <openssl/pem.h>
 
 #define POLICY_FORMAT "{\"Statement\":[{\"Resource\":\"%V\",\"Condition\":{\"DateLessThan\":{\"AWS:EpochTime\":%uD}}}]}"
@@ -7,23 +7,40 @@
 #define KEY_PAIR_ID_PARAM "&Key-Pair-Id="
 
 void
-ngx_http_secure_token_cloud_front_create_conf(
+ngx_http_secure_token_cloudfront_create_conf(
 	ngx_conf_t *cf,
-	ngx_http_secure_token_cloud_front_conf_t *conf)
+	ngx_http_secure_token_cloudfront_conf_t *conf)
 {
 }
 
 char *
-ngx_http_secure_token_cloud_front_merge_conf(
+ngx_http_secure_token_cloudfront_merge_conf(
 	ngx_conf_t *cf,
 	ngx_http_secure_token_loc_conf_t *base,
-	ngx_http_secure_token_cloud_front_conf_t *conf,
-	ngx_http_secure_token_cloud_front_conf_t *prev)
+	ngx_http_secure_token_cloudfront_conf_t *conf,
+	ngx_http_secure_token_cloudfront_conf_t *prev)
 {
 	BIO *in;
 
 	ngx_conf_merge_str_value(conf->key_pair_id, prev->key_pair_id, "");	
 	ngx_conf_merge_str_value(conf->private_key_file, prev->private_key_file, "");
+
+	if (base->build_token == ngx_http_secure_token_cloudfront_build)
+	{
+		if (conf->key_pair_id.len == 0)
+		{
+			ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+				"\"secure_token_cloudfront_key_pair_id\" is mandatory for cloudfront tokens");
+			return NGX_CONF_ERROR;
+		}
+
+		if (conf->private_key_file.len == 0)
+		{
+			ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+				"\"secure_token_cloudfront_private_key_file\" is mandatory for cloudfront tokens");
+			return NGX_CONF_ERROR;
+		}
+	}
 
 	if (conf->private_key_file.len)
 	{
@@ -50,7 +67,7 @@ ngx_http_secure_token_cloud_front_merge_conf(
 //	2. changed 
 
 static u_char*
-ngx_encode_base64_internal_cloud_front(u_char *d, ngx_str_t *src, const u_char *basis, ngx_uint_t padding)
+ngx_encode_base64_internal_cloudfront(u_char *d, ngx_str_t *src, const u_char *basis, ngx_uint_t padding)
 {
     u_char         *s;
     size_t          len;
@@ -91,16 +108,16 @@ ngx_encode_base64_internal_cloud_front(u_char *d, ngx_str_t *src, const u_char *
 }
 
 static u_char*
-ngx_encode_base64_cloud_front(u_char *d, ngx_str_t *src)
+ngx_encode_base64_cloudfront(u_char *d, ngx_str_t *src)
 {
     static u_char basis64[] =
             "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-~";
 
-    return ngx_encode_base64_internal_cloud_front(d, src, basis64, 1);
+    return ngx_encode_base64_internal_cloudfront(d, src, basis64, 1);
 }
 
 static ngx_int_t
-ngx_http_secure_token_cloud_front_sign(ngx_http_request_t* r, EVP_PKEY *private_key, ngx_str_t* policy, ngx_str_t* signature)
+ngx_http_secure_token_cloudfront_sign(ngx_http_request_t* r, EVP_PKEY *private_key, ngx_str_t* policy, ngx_str_t* signature)
 {
 	EVP_MD_CTX md_ctx;
 	unsigned int siglen;
@@ -140,7 +157,7 @@ error:
 }
 
 ngx_int_t
-ngx_http_secure_token_cloud_front_build(
+ngx_http_secure_token_cloudfront_build(
 	ngx_http_request_t* r, 
 	ngx_http_secure_token_loc_conf_t *conf, 
 	ngx_str_t* acl, 
@@ -161,7 +178,7 @@ ngx_http_secure_token_cloud_front_build(
 	policy.len = ngx_sprintf(policy.data, POLICY_FORMAT, acl, ngx_time() + conf->window) - policy.data;
 	
 	// sign the policy
-	rc = ngx_http_secure_token_cloud_front_sign(r, conf->cloud_front.private_key, &policy, &signature);
+	rc = ngx_http_secure_token_cloudfront_sign(r, conf->cloudfront.private_key, &policy, &signature);
 	if (rc != NGX_OK)
 	{
 		return rc;
@@ -175,18 +192,18 @@ ngx_http_secure_token_cloud_front_build(
 		sizeof(SIGNATURE_PARAM) - 1 + 
 		ngx_base64_encoded_length(signature.len) +
 		sizeof(KEY_PAIR_ID_PARAM) - 1 + 
-		conf->cloud_front.key_pair_id.len + 1);
+		conf->cloudfront.key_pair_id.len + 1);
 	if (result->data == NULL)
 	{
 		return NGX_ERROR;
 	}
 		
 	p = ngx_copy(result->data, POLICY_PARAM, sizeof(POLICY_PARAM) - 1);
-	p = ngx_encode_base64_cloud_front(p, &policy);
+	p = ngx_encode_base64_cloudfront(p, &policy);
 	p = ngx_copy(p, SIGNATURE_PARAM, sizeof(SIGNATURE_PARAM) - 1);
-	p = ngx_encode_base64_cloud_front(p, &signature);
+	p = ngx_encode_base64_cloudfront(p, &signature);
 	p = ngx_copy(p, KEY_PAIR_ID_PARAM, sizeof(KEY_PAIR_ID_PARAM) - 1);
-	p = ngx_copy(p, conf->cloud_front.key_pair_id.data, conf->cloud_front.key_pair_id.len);
+	p = ngx_copy(p, conf->cloudfront.key_pair_id.data, conf->cloudfront.key_pair_id.len);
 	*p = '\0';
 	
 	result->len = p - result->data;
