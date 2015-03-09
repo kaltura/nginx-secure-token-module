@@ -120,7 +120,7 @@ ngx_http_secure_token_xml_processor(
 				for (cur_attr = cur_node->attr_names; cur_attr->len != 0; cur_attr++)
 				{
 					if (ctx->attr_name_len != cur_attr->len ||
-						ngx_strncasecmp(ctx->attr_name, cur_attr->data, cur_attr->len) == 0)
+						ngx_strncasecmp(ctx->attr_name, cur_attr->data, cur_attr->len) != 0)
 					{
 						continue;
 					}
