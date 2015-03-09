@@ -1,8 +1,4 @@
-#include "ngx_http_secure_token_mpd.h"
-
-static u_char segment_template_tag[] = "SegmentTemplate";
-static u_char media_attr_name[] = "media";
-static u_char init_attr_name[] = "initialization";
+#include "ngx_http_secure_token_xml.h"
 
 enum {
 	STATE_INITIAL,
@@ -15,14 +11,17 @@ enum {
 };
 
 ngx_chain_t** 
-ngx_http_secure_token_mpd_processor(
+ngx_http_secure_token_xml_processor(
 	ngx_http_secure_token_processor_conf_t* conf,
+	ngx_http_secure_token_xml_node_attrs_t* nodes,
 	ngx_buf_t *in, 
 	ngx_http_secure_token_ctx_t* root_ctx,
-	ngx_http_secure_token_mpd_ctx_t* ctx, 
+	ngx_http_secure_token_xml_ctx_t* ctx, 
 	ngx_pool_t* pool, 
 	ngx_chain_t** out)
 {
+	ngx_http_secure_token_xml_node_attrs_t* cur_node;
+	ngx_str_t* cur_attr;
 	u_char* last_sent;
 	u_char* cur_pos;
 	u_char* buffer_end;
@@ -63,7 +62,7 @@ ngx_http_secure_token_mpd_processor(
 			{
 				ctx->state = STATE_CLOSING_TAG_NAME;
 			}
-			else if (ctx->tag_name_len < MPD_MAX_TAG_NAME_LEN)
+			else if (ctx->tag_name_len < XML_MAX_TAG_NAME_LEN)
 			{
 				ctx->tag_name[ctx->tag_name_len] = ch;
 				ctx->tag_name_len++;
@@ -83,7 +82,7 @@ ngx_http_secure_token_mpd_processor(
 			{
 				ctx->state = STATE_INITIAL;
 			}
-			else if (ctx->attr_name_len < MPD_MAX_ATTR_NAME_LEN)
+			else if (ctx->attr_name_len < XML_MAX_ATTR_NAME_LEN)
 			{
 				ctx->attr_name[ctx->attr_name_len] = ch;
 				ctx->attr_name_len++;
@@ -110,18 +109,29 @@ ngx_http_secure_token_mpd_processor(
 				break;
 			}
 
-			if (ctx->tag_name_len == sizeof(segment_template_tag) - 1 &&
-				ngx_memcmp(ctx->tag_name, segment_template_tag, sizeof(segment_template_tag) - 1) == 0 &&
-				((ctx->attr_name_len == sizeof(media_attr_name) - 1 &&
-				ngx_memcmp(ctx->attr_name, media_attr_name, sizeof(media_attr_name) - 1) == 0) ||
-				(ctx->attr_name_len == sizeof(init_attr_name) - 1 &&
-				ngx_memcmp(ctx->attr_name, init_attr_name, sizeof(init_attr_name) - 1) == 0)))
+			for (cur_node = nodes; cur_node->tag_name.len != 0; cur_node++)
 			{
-				out = ngx_http_secure_token_add_token(
-					root_ctx, pool, &last_sent, cur_pos, ctx->state == STATE_ATTR_QUOTED_VALUE_WITH_QUERY, ctx->last_url_char, out);
-				if (out == NULL)
+				if (ctx->tag_name_len != cur_node->tag_name.len ||
+					ngx_strncasecmp(ctx->tag_name, cur_node->tag_name.data, cur_node->tag_name.len) != 0)
 				{
-					return NULL;
+					continue;
+				}
+
+				for (cur_attr = cur_node->attr_names; cur_attr->len != 0; cur_attr++)
+				{
+					if (ctx->attr_name_len != cur_attr->len ||
+						ngx_strncasecmp(ctx->attr_name, cur_attr->data, cur_attr->len) == 0)
+					{
+						continue;
+					}
+					
+					
+					out = ngx_http_secure_token_add_token(
+						root_ctx, pool, &last_sent, cur_pos, ctx->state == STATE_ATTR_QUOTED_VALUE_WITH_QUERY, ctx->last_url_char, out);
+					if (out == NULL)
+					{
+						return NULL;
+					}
 				}
 			}
 

@@ -1,6 +1,6 @@
 # Secure token module for Nginx
 
-Generates CDN tokens, either as a cookie or as a query string parameter (m3u8/mpd only).
+Generates CDN tokens, either as a cookie or as a query string parameter (m3u8,mpd,f4m only).
 Currently supports Akamai v2 tokens, and Amazon CloudFront tokens.
 
 ## Installation

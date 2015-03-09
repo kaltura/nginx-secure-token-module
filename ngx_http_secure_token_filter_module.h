@@ -11,6 +11,7 @@ typedef struct ngx_http_secure_token_ctx_s ngx_http_secure_token_ctx_t;
 
 typedef ngx_chain_t** (*ngx_http_secure_token_body_processor_t)(
 	ngx_http_secure_token_processor_conf_t* conf,
+	void* params,
 	ngx_buf_t *in, 
 	ngx_http_secure_token_ctx_t* root_ctx,
 	void* ctx, 
