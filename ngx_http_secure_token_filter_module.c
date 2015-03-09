@@ -8,7 +8,7 @@
 #include "ngx_http_secure_token_akamai.h"
 #include "ngx_http_secure_token_conf.h"
 #include "ngx_http_secure_token_m3u8.h"
-#include "ngx_http_secure_token_mpd.h"
+#include "ngx_http_secure_token_xml.h"
 
 #define CACHE_CONTROL_FORMAT "%V, max-age=%T, max-stale=0"
 
@@ -40,9 +40,10 @@ struct ngx_http_secure_token_ctx_s {
 	ngx_str_t token;
 	ngx_http_secure_token_body_processor_t process;
 	off_t processor_context_offset;
+	void* processor_params;
 	union {
 		ngx_http_secure_token_m3u8_ctx_t m3u8;
-		ngx_http_secure_token_mpd_ctx_t mpd;
+		ngx_http_secure_token_xml_ctx_t xml;
 	} u;
 };
 
@@ -182,11 +183,34 @@ typedef struct {
 	ngx_str_t content_type;
 	ngx_http_secure_token_body_processor_t process;
 	off_t processor_context_offset;
+	void* processor_params;
 } body_processor_t;
 
+static ngx_str_t mpd_segment_template_attrs[] = {
+	ngx_string("media"),
+	ngx_string("initialization"),
+	ngx_null_string
+};
+
+static ngx_http_secure_token_xml_node_attrs_t mpd_nodes[] = {
+	{ ngx_string("SegmentTemplate"), mpd_segment_template_attrs },
+	{ ngx_null_string, NULL }
+};
+
+static ngx_str_t f4m_media_attrs[] = {
+	ngx_string("url"),
+	ngx_null_string
+};
+
+static ngx_http_secure_token_xml_node_attrs_t f4m_nodes[] = {
+	{ ngx_string("media"), f4m_media_attrs },
+	{ ngx_null_string, NULL }
+};
+
 static body_processor_t body_processors[] = {
-	{ ngx_string("application/vnd.apple.mpegurl"),	(ngx_http_secure_token_body_processor_t)ngx_http_secure_token_m3u8_processor,	offsetof(ngx_http_secure_token_ctx_t, u.m3u8) },
-	{ ngx_string("application/dash+xml"),			(ngx_http_secure_token_body_processor_t)ngx_http_secure_token_mpd_processor,	offsetof(ngx_http_secure_token_ctx_t, u.mpd) },
+	{ ngx_string("application/vnd.apple.mpegurl"),	(ngx_http_secure_token_body_processor_t)ngx_http_secure_token_m3u8_processor,	offsetof(ngx_http_secure_token_ctx_t, u.m3u8), NULL				},
+	{ ngx_string("application/dash+xml"),			(ngx_http_secure_token_body_processor_t)ngx_http_secure_token_xml_processor,	offsetof(ngx_http_secure_token_ctx_t, u.xml),  &mpd_nodes	},
+	{ ngx_string("video/f4m"),						(ngx_http_secure_token_body_processor_t)ngx_http_secure_token_xml_processor,	offsetof(ngx_http_secure_token_ctx_t, u.xml),  &f4m_nodes	},
 };
 
 static ngx_int_t
@@ -680,6 +704,7 @@ ngx_http_secure_token_header_filter(ngx_http_request_t *r)
 		ctx->token = token;
 		ctx->process = processor->process;
 		ctx->processor_context_offset = processor->processor_context_offset;
+		ctx->processor_params = processor->processor_params;
 
 		ngx_http_set_ctx(r, ctx, ngx_http_secure_token_filter_module);
 
@@ -869,6 +894,7 @@ ngx_http_secure_token_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
 
 		cur_out = ctx->process(
 			&conf->processor_conf,
+			ctx->processor_params,
 			in->buf,
 			ctx,
 			(u_char*)ctx + ctx->processor_context_offset,

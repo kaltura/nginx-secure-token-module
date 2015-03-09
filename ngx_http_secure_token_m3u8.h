@@ -23,6 +23,7 @@ typedef struct {
 ngx_chain_t**
 ngx_http_secure_token_m3u8_processor(
 	ngx_http_secure_token_processor_conf_t* conf,
+	void* params,
 	ngx_buf_t *in,
 	ngx_http_secure_token_ctx_t* root_ctx,
 	ngx_http_secure_token_m3u8_ctx_t* ctx,
