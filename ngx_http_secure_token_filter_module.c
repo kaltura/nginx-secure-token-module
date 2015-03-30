@@ -640,7 +640,6 @@ ngx_http_secure_token_header_filter(ngx_http_request_t *r)
 	ngx_str_t uri_filename;
 	ngx_int_t rc;
 	u_char* last_slash_pos;
-	u_char* comma_pos;
 
     conf = ngx_http_get_module_loc_conf(r, ngx_http_secure_token_filter_module);
 	

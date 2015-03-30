@@ -19,8 +19,7 @@ typedef ngx_chain_t** (*ngx_http_secure_token_body_processor_t)(
 	ngx_chain_t** out);
 
 // functions
-ngx_chain_t**
-ngx_http_secure_token_add_to_chain(
+ngx_chain_t** ngx_http_secure_token_add_to_chain(
 	ngx_pool_t* pool, 
 	ngx_chain_t** out, 
 	u_char* start, 
@@ -28,8 +27,7 @@ ngx_http_secure_token_add_to_chain(
 	ngx_flag_t memory, 
 	ngx_flag_t last_buf);
 
-ngx_chain_t**
-ngx_http_secure_token_add_token(
+ngx_chain_t** ngx_http_secure_token_add_token(
 	ngx_http_secure_token_ctx_t* ctx, 
 	ngx_pool_t* pool,
 	u_char** last_sent,
@@ -37,5 +35,7 @@ ngx_http_secure_token_add_token(
 	ngx_flag_t has_query,
 	u_char last_url_char,
 	ngx_chain_t** out);
+
+ngx_int_t ngx_http_secure_token_get_acl(ngx_http_request_t *r, ngx_http_complex_value_t *acl_conf, ngx_str_t* acl);
 
 #endif // _NGX_HTTP_SECURE_TOKEN_FILTER_MODULE_H_INCLUDED_
