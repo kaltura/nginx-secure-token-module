@@ -1,4 +1,5 @@
 #include "ngx_http_secure_token_cloudfront.h"
+#include "ngx_http_secure_token_filter_module.h"
 #include <openssl/pem.h>
 
 #define POLICY_FORMAT "{\"Statement\":[{\"Resource\":\"%V\",\"Condition\":{\"DateLessThan\":{\"AWS:EpochTime\":%uD}}}]}"
