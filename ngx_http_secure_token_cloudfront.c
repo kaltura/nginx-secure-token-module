@@ -22,6 +22,10 @@ ngx_http_secure_token_cloudfront_merge_conf(
 {
 	BIO *in;
 
+	if (conf->acl == NULL)
+	{
+		conf->acl = prev->acl;
+	}
 	ngx_conf_merge_str_value(conf->key_pair_id, prev->key_pair_id, "");	
 	ngx_conf_merge_str_value(conf->private_key_file, prev->private_key_file, "");
 
@@ -160,22 +164,28 @@ ngx_int_t
 ngx_http_secure_token_cloudfront_build(
 	ngx_http_request_t* r, 
 	ngx_http_secure_token_loc_conf_t *conf, 
-	ngx_str_t* acl, 
 	ngx_str_t* result)
 {
 	ngx_str_t signature;
 	ngx_str_t policy;
+	ngx_str_t acl;
 	ngx_int_t rc;
 	u_char* p;
 
+	rc = ngx_http_secure_token_get_acl(r, conf->cloudfront.acl, &acl);
+	if (rc != NGX_OK)
+	{
+		return rc;
+	}
+
 	// build the policy json
-	policy.data = ngx_palloc(r->pool, sizeof(POLICY_FORMAT) + acl->len + NGX_INT32_LEN);
+	policy.data = ngx_palloc(r->pool, sizeof(POLICY_FORMAT) + acl.len + NGX_INT32_LEN);
 	if (policy.data == NULL)
 	{
 		return NGX_ERROR;
 	}
 	
-	policy.len = ngx_sprintf(policy.data, POLICY_FORMAT, acl, ngx_time() + conf->window) - policy.data;
+	policy.len = ngx_sprintf(policy.data, POLICY_FORMAT, &acl, ngx_time() + conf->window) - policy.data;
 	
 	// sign the policy
 	rc = ngx_http_secure_token_cloudfront_sign(r, conf->cloudfront.private_key, &policy, &signature);

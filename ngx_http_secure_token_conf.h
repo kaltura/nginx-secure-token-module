@@ -11,7 +11,6 @@ typedef struct ngx_http_secure_token_loc_conf_s ngx_http_secure_token_loc_conf_t
 typedef ngx_int_t (*ngx_http_secure_token_build_t)(
 	ngx_http_request_t* r, 
 	ngx_http_secure_token_loc_conf_t *conf, 
-	ngx_str_t* acl, 
 	ngx_str_t* result);
 
 typedef struct {

@@ -3,7 +3,7 @@
 #include <openssl/hmac.h>
 #include <openssl/evp.h>
 
-#define TOKEN_FORMAT "st=%uD~exp=%uD~acl=%V*"
+#define TOKEN_FORMAT "st=%uD~exp=%uD~acl=%V"
 #define HMAC_PARAM "~hmac="
 
 void
@@ -20,6 +20,10 @@ ngx_http_secure_token_akamai_merge_conf(
 	ngx_http_secure_token_akamai_conf_t *conf,
 	ngx_http_secure_token_akamai_conf_t *prev)
 {
+	if (conf->acl == NULL)
+	{
+		conf->acl = prev->acl;
+	}
 	ngx_conf_merge_str_value(conf->key, prev->key, "");
 	ngx_conf_merge_str_value(conf->param_name, prev->param_name, "__hdnea__");
 
@@ -40,7 +44,6 @@ ngx_int_t
 ngx_http_secure_token_akamai_build(
 	ngx_http_request_t* r, 
 	ngx_http_secure_token_loc_conf_t *conf, 
-	ngx_str_t* acl, 
 	ngx_str_t* result)
 {
 	time_t current_time = ngx_time();
@@ -48,10 +51,18 @@ ngx_http_secure_token_akamai_build(
 	unsigned hash_len;
 	HMAC_CTX hmac;
 	ngx_str_t signed_part;
+	ngx_str_t acl;
 	size_t result_size;
 	u_char* p;
-	
-	result_size = conf->akamai.param_name.len + 1 + sizeof(TOKEN_FORMAT) + 2 * NGX_INT32_LEN + acl->len + sizeof(HMAC_PARAM) - 1 + EVP_MAX_MD_SIZE * 2 + 1;
+	ngx_int_t rc;
+
+	rc = ngx_http_secure_token_get_acl(r, conf->akamai.acl, &acl);
+	if (rc != NGX_OK)
+	{
+		return rc;
+	}
+
+	result_size = conf->akamai.param_name.len + 1 + sizeof(TOKEN_FORMAT) + 2 * NGX_INT32_LEN + acl.len + sizeof(HMAC_PARAM) - 1 + EVP_MAX_MD_SIZE * 2 + 1;
 	
 	result->data = ngx_palloc(r->pool, result_size);
 	if (result->data == NULL)
@@ -63,7 +74,7 @@ ngx_http_secure_token_akamai_build(
 	*p++ = '=';
 	
 	signed_part.data = p;
-	p = ngx_sprintf(p, TOKEN_FORMAT, current_time, current_time + conf->window, acl);
+	p = ngx_sprintf(p, TOKEN_FORMAT, current_time, current_time + conf->window, &acl);
 	signed_part.len = p - signed_part.data;
 	
 	HMAC_CTX_init(&hmac);

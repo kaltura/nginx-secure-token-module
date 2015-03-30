@@ -5,6 +5,7 @@
 #include <openssl/evp.h>
 
 typedef struct {
+	ngx_http_complex_value_t *acl;
 	ngx_str_t key_pair_id;
 	ngx_str_t private_key_file;
 	EVP_PKEY *private_key;
