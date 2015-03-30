@@ -16,6 +16,9 @@ static char *ngx_conf_set_hex_str_slot(ngx_conf_t *cf, ngx_command_t *cmd, void 
 static char *ngx_http_secure_token_command(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 static void *ngx_http_secure_token_create_loc_conf(ngx_conf_t *cf);
 static char *ngx_http_secure_token_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child);
+static ngx_int_t ngx_http_secure_token_add_variables(ngx_conf_t *cf);
+static ngx_int_t ngx_http_secure_token_filter_init(ngx_conf_t *cf);
+static ngx_int_t ngx_http_secure_token_set_baseuri(ngx_http_request_t *r, ngx_http_variable_value_t *v, uintptr_t data);
 
 enum {
 	TOKEN_PREFIX_NONE,
@@ -31,9 +34,11 @@ static ngx_str_t token_prefixes[TOKEN_PREFIX_COUNT] = {
 	ngx_string("&"),
 };
 
-ngx_str_t  ngx_http_secure_token_default_types[] = {
+static ngx_str_t  ngx_http_secure_token_default_types[] = {
 	ngx_null_string
 };
+
+static ngx_str_t  ngx_http_baseuri = ngx_string("baseuri");
 
 struct ngx_http_secure_token_ctx_s {
 	ngx_str_t prefixed_tokens[TOKEN_PREFIX_COUNT];
@@ -144,11 +149,9 @@ static ngx_command_t  ngx_http_secure_token_commands[] = {
 
 	ngx_null_command
 };
-	  
-static ngx_int_t ngx_http_secure_token_filter_init(ngx_conf_t *cf);
 
 static ngx_http_module_t  ngx_http_secure_token_filter_module_ctx = {
-    NULL,                                  /* preconfiguration */
+    ngx_http_secure_token_add_variables,   /* preconfiguration */
     ngx_http_secure_token_filter_init,     /* postconfiguration */
 
     NULL,                                  /* create main configuration */
@@ -595,6 +598,34 @@ ngx_http_secure_token_call_next_filter(
 	return ngx_http_next_header_filter(r);
 }
 
+ngx_int_t
+ngx_http_secure_token_get_acl(ngx_http_request_t *r, ngx_http_complex_value_t *acl_conf, ngx_str_t* acl)
+{
+	ngx_http_variable_value_t var_value;
+
+	// get the acl
+	if (acl_conf != NULL)
+	{
+		if (ngx_http_complex_value(r, acl_conf, acl) != NGX_OK)
+		{
+			return NGX_ERROR;
+		}
+	}
+	else
+	{
+		// the default is 'baseuri'
+		if (ngx_http_secure_token_set_baseuri(r, &var_value, 0) != NGX_OK)
+		{
+			return NGX_ERROR;
+		}
+
+		acl->data = var_value.data;
+		acl->len = var_value.len;
+	}
+
+	return NGX_OK;
+}
+
 static ngx_int_t
 ngx_http_secure_token_header_filter(ngx_http_request_t *r)
 {
@@ -607,10 +638,8 @@ ngx_http_secure_token_header_filter(ngx_http_request_t *r)
 	ngx_str_t* cur_prefix;
 	ngx_str_t token;
 	ngx_str_t uri_filename;
-	ngx_str_t acl;
 	ngx_int_t rc;
 	u_char* last_slash_pos;
-	u_char* acl_end_pos;
 	u_char* comma_pos;
 
     conf = ngx_http_get_module_loc_conf(r, ngx_http_secure_token_filter_module);
@@ -668,19 +697,8 @@ ngx_http_secure_token_header_filter(ngx_http_request_t *r)
 		}
 	}
 
-	// get the acl
-	acl_end_pos = last_slash_pos + 1;
-	
-	comma_pos = memchr(r->uri.data, ',', r->uri.len);
-	if (comma_pos != NULL)
-	{
-		acl_end_pos = ngx_min(acl_end_pos, comma_pos);
-	}
-	acl.data = r->uri.data;
-	acl.len = acl_end_pos - r->uri.data;
-
 	// build the token
-	rc = conf->build_token(r, conf, &acl, &token);
+	rc = conf->build_token(r, conf, &token);
 	if (rc != NGX_OK)
 	{
 		return rc;
@@ -929,5 +947,51 @@ ngx_http_secure_token_filter_init(ngx_conf_t *cf)
 	ngx_http_next_body_filter = ngx_http_top_body_filter;
 	ngx_http_top_body_filter = ngx_http_secure_token_body_filter;	
 	
+	return NGX_OK;
+}
+
+static ngx_int_t
+ngx_http_secure_token_set_baseuri(ngx_http_request_t *r, ngx_http_variable_value_t *v, uintptr_t data)
+{
+	u_char* last_slash_pos;
+	u_char* acl_end_pos;
+	u_char* comma_pos;
+
+	last_slash_pos = memrchr(r->uri.data, '/', r->uri.len);
+	if (last_slash_pos == NULL)
+	{
+		return NGX_ERROR;
+	}
+
+	acl_end_pos = last_slash_pos + 1;
+
+	comma_pos = memchr(r->uri.data, ',', r->uri.len);
+	if (comma_pos != NULL)
+	{
+		acl_end_pos = ngx_min(acl_end_pos, comma_pos);
+	}
+
+	v->valid = 1;
+	v->no_cacheable = 0;
+	v->not_found = 0;
+
+	v->len = acl_end_pos - r->uri.data;
+	v->data = r->uri.data;
+
+	return NGX_OK;
+}
+
+static ngx_int_t
+ngx_http_secure_token_add_variables(ngx_conf_t *cf)
+{
+	ngx_http_variable_t  *var;
+
+	var = ngx_http_add_variable(cf, &ngx_http_baseuri, NGX_HTTP_VAR_CHANGEABLE);
+	if (var == NULL) {
+		return NGX_ERROR;
+	}
+
+	var->get_handler = ngx_http_secure_token_set_baseuri;
+
 	return NGX_OK;
 }

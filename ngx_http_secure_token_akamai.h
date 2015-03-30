@@ -19,7 +19,6 @@ ngx_int_t
 ngx_http_secure_token_akamai_build(
 	ngx_http_request_t* r, 
 	ngx_http_secure_token_loc_conf_t *conf, 
-	ngx_str_t* acl, 
 	ngx_str_t* result);
 
 #endif // _NGX_HTTP_SECURE_TOKEN_AKAMAI_H_INCLUDED_
