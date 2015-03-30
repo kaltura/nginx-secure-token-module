@@ -21,18 +21,26 @@ Requires OpenSSL.
 Enables token generation of the requested type, supported types are: akamai, cloudfront
 
 #### secure_token_akamai_key
-* **syntax**: `secure_token_key key_hex`
+* **syntax**: `secure_token_akamai_key key_hex`
 * **default**: `empty`
 * **context**: `http`, `server`, `location`
 
 Sets the secret key
 
 #### secure_token_akamai_param_name
-* **syntax**: `secure_token_param_name name`
+* **syntax**: `secure_token_akamai_param_name name`
 * **default**: `__hdnea__`
 * **context**: `http`, `server`, `location`
 
 Sets the token parameter name (either the name of the cookie or the query string parameter)
+
+#### secure_token_akamai_acl
+* **syntax**: `secure_token_akamai_acl acl`
+* **default**: `$baseuri`
+* **context**: `http`, `server`, `location`
+
+Sets the signed part of the URL (ACL).
+The parameter value can contain variables.
 
 #### secure_token_cloudfront_private_key_file
 * **syntax**: `secure_token_cloudfront_private_key_file filename`
@@ -47,6 +55,14 @@ Sets the file name of the private key (PEM file)
 * **context**: `http`, `server`, `location`
 
 Sets the key pair id
+
+#### secure_token_cloudfront_acl
+* **syntax**: `secure_token_cloudfront_acl acl`
+* **default**: `$baseuri`
+* **context**: `http`, `server`, `location`
+
+Sets the signed part of the URL (ACL).
+The parameter value can contain variables.
 
 #### secure_token_window
 * **syntax**: `secure_token_window window`
