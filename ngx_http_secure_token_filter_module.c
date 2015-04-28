@@ -144,6 +144,27 @@ static ngx_command_t  ngx_http_secure_token_commands[] = {
 	offsetof(ngx_http_secure_token_loc_conf_t, token_last_modified),
 	NULL },
 
+	{ ngx_string("secure_token_content_type_m3u8"),
+	NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+	ngx_conf_set_str_slot,
+	NGX_HTTP_LOC_CONF_OFFSET,
+	offsetof(ngx_http_secure_token_loc_conf_t, content_type_m3u8),
+	NULL },
+
+	{ ngx_string("secure_token_content_type_mpd"),
+	NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+	ngx_conf_set_str_slot,
+	NGX_HTTP_LOC_CONF_OFFSET,
+	offsetof(ngx_http_secure_token_loc_conf_t, content_type_mpd),
+	NULL },
+
+	{ ngx_string("secure_token_content_type_f4m"),
+	NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+	ngx_conf_set_str_slot,
+	NGX_HTTP_LOC_CONF_OFFSET,
+	offsetof(ngx_http_secure_token_loc_conf_t, content_type_f4m),
+	NULL },
+
 #include "ngx_http_secure_token_akamai_commands.h"
 #include "ngx_http_secure_token_cloudfront_commands.h"
 
@@ -183,7 +204,7 @@ static ngx_http_output_header_filter_pt  ngx_http_next_header_filter;
 static ngx_http_output_body_filter_pt    ngx_http_next_body_filter;
 
 typedef struct {
-	ngx_str_t content_type;
+	off_t content_type_offset;
 	ngx_http_secure_token_body_processor_t process;
 	off_t processor_context_offset;
 	void* processor_params;
@@ -205,15 +226,21 @@ static ngx_str_t f4m_media_attrs[] = {
 	ngx_null_string
 };
 
+static ngx_str_t f4m_bootstrap_info_attrs[] = {
+	ngx_string("url"),
+	ngx_null_string
+};
+
 static ngx_http_secure_token_xml_node_attrs_t f4m_nodes[] = {
 	{ ngx_string("media"), f4m_media_attrs },
+	{ ngx_string("bootstrapInfo"), f4m_bootstrap_info_attrs },
 	{ ngx_null_string, NULL }
 };
 
 static body_processor_t body_processors[] = {
-	{ ngx_string("application/vnd.apple.mpegurl"),	(ngx_http_secure_token_body_processor_t)ngx_http_secure_token_m3u8_processor,	offsetof(ngx_http_secure_token_ctx_t, u.m3u8), NULL				},
-	{ ngx_string("application/dash+xml"),			(ngx_http_secure_token_body_processor_t)ngx_http_secure_token_xml_processor,	offsetof(ngx_http_secure_token_ctx_t, u.xml),  &mpd_nodes	},
-	{ ngx_string("video/f4m"),						(ngx_http_secure_token_body_processor_t)ngx_http_secure_token_xml_processor,	offsetof(ngx_http_secure_token_ctx_t, u.xml),  &f4m_nodes	},
+	{ offsetof(ngx_http_secure_token_loc_conf_t, content_type_m3u8), (ngx_http_secure_token_body_processor_t)ngx_http_secure_token_m3u8_processor,	offsetof(ngx_http_secure_token_ctx_t, u.m3u8), NULL				},
+	{ offsetof(ngx_http_secure_token_loc_conf_t, content_type_mpd), (ngx_http_secure_token_body_processor_t)ngx_http_secure_token_xml_processor, offsetof(ngx_http_secure_token_ctx_t, u.xml), &mpd_nodes },
+	{ offsetof(ngx_http_secure_token_loc_conf_t, content_type_f4m), (ngx_http_secure_token_body_processor_t)ngx_http_secure_token_xml_processor, offsetof(ngx_http_secure_token_ctx_t, u.xml), &f4m_nodes },
 };
 
 static ngx_int_t
@@ -227,7 +254,7 @@ ngx_http_secure_token_init_processors_hash(ngx_conf_t *cf, ngx_http_secure_token
 
 	for (i = 0; i < sizeof(hash_keys) / sizeof(hash_keys[0]); i++)
 	{
-		content_type = &body_processors[i].content_type;
+		content_type = (ngx_str_t*)((u_char*)conf + body_processors[i].content_type_offset);
 		hash_keys[i].key = *content_type;
 		hash_keys[i].key_hash = ngx_hash_key_lc(content_type->data, content_type->len);
 		hash_keys[i].value = &body_processors[i];
@@ -410,6 +437,10 @@ ngx_http_secure_token_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
 	ngx_conf_merge_str_value(conf->token_cache_scope, prev->token_cache_scope, "private");
 	ngx_conf_merge_str_value(conf->last_modified, prev->last_modified, "Sun, 19 Nov 2000 08:52:00 GMT");
 	ngx_conf_merge_str_value(conf->token_last_modified, prev->token_last_modified, "now");
+
+	ngx_conf_merge_str_value(conf->content_type_m3u8, prev->content_type_m3u8, "application/vnd.apple.mpegurl");
+	ngx_conf_merge_str_value(conf->content_type_mpd, prev->content_type_mpd, "application/dash+xml");
+	ngx_conf_merge_str_value(conf->content_type_f4m, prev->content_type_f4m, "video/f4m");
 
 	ngx_conf_merge_value(conf->processor_conf.tokenize_segments, prev->processor_conf.tokenize_segments, 1);
 	

@@ -35,6 +35,9 @@ struct ngx_http_secure_token_loc_conf_s {
 	ngx_str_t	token_last_modified;
 	time_t		last_modified_time;
 	time_t		token_last_modified_time;
+	ngx_str_t	content_type_m3u8;
+	ngx_str_t	content_type_mpd;
+	ngx_str_t	content_type_f4m;
 
 	ngx_http_secure_token_processor_conf_t processor_conf;
 

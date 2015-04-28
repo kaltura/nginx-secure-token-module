@@ -151,6 +151,27 @@ An empty string leaves the value of last-modified unaltered, while the string "n
 Sets the value of the last-modified header of responses that are tokenized (query / cookie)
 An empty string leaves the value of last-modified unaltered, while the string "now" sets the header to the server current time.
 
+#### secure_token_content_type_m3u8
+* **syntax**: `secure_token_content_type_m3u8 type`
+* **default**: `application/vnd.apple.mpegurl`
+* **context**: `http`, `server`, `location`
+
+Sets the content type that should be parsed as m3u8 for token insertion
+
+#### secure_token_content_type_mpd
+* **syntax**: `secure_token_content_type_mpd type`
+* **default**: `application/dash+xml`
+* **context**: `http`, `server`, `location`
+
+Sets the content type that should be parsed as mpd for token insertion
+
+#### secure_token_content_type_f4m
+* **syntax**: `secure_token_content_type_f4m type`
+* **default**: `video/f4m`
+* **context**: `http`, `server`, `location`
+
+Sets the content type that should be parsed as f4m for token insertion
+
 ## Copyright & License
 
 All code in this project is released under the [AGPLv3 license](http://www.gnu.org/licenses/agpl-3.0.html) unless a different license for a particular library is specified in the applicable library path. 
