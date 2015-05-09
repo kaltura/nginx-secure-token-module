@@ -657,6 +657,19 @@ ngx_http_secure_token_get_acl(ngx_http_request_t *r, ngx_http_complex_value_t *a
 	return NGX_OK;
 }
 
+static void *
+ngx_http_secure_token_memrchr(const u_char *s, int c, size_t n)
+{
+	const u_char *cp;
+
+	for (cp = s + n; cp > s;)
+	{
+		if (*(--cp) == (u_char)c)
+			return (void*)cp;
+	}
+	return NULL;
+}
+
 static ngx_int_t
 ngx_http_secure_token_header_filter(ngx_http_request_t *r)
 {
@@ -693,7 +706,7 @@ ngx_http_secure_token_header_filter(ngx_http_request_t *r)
 	}
 
 	// check the file name
-	last_slash_pos = memrchr(r->uri.data, '/', r->uri.len);
+	last_slash_pos = ngx_http_secure_token_memrchr(r->uri.data, '/', r->uri.len);
 	if (last_slash_pos == NULL) 
 	{
 		return NGX_ERROR;
@@ -987,7 +1000,7 @@ ngx_http_secure_token_set_baseuri(ngx_http_request_t *r, ngx_http_variable_value
 	u_char* acl_end_pos;
 	u_char* comma_pos;
 
-	last_slash_pos = memrchr(r->uri.data, '/', r->uri.len);
+	last_slash_pos = ngx_http_secure_token_memrchr(r->uri.data, '/', r->uri.len);
 	if (last_slash_pos == NULL)
 	{
 		return NGX_ERROR;
