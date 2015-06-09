@@ -1,4 +1,4 @@
-# Secure token module for Nginx
+# Secure token module for Nginx [![Build Status](https://travis-ci.org/kaltura/nginx-secure-token-module.svg?branch=master)](https://travis-ci.org/kaltura/nginx-secure-token-module)
 
 Generates CDN tokens, either as a cookie or as a query string parameter (m3u8,mpd,f4m only).
 Currently supports Akamai v2 tokens, and Amazon CloudFront tokens.
