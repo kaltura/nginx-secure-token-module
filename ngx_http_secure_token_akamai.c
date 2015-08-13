@@ -65,7 +65,7 @@ ngx_http_secure_token_akamai_build(
 
 	result_size = conf->akamai.param_name.len + 1 + sizeof(TOKEN_FORMAT) + 2 * NGX_INT32_LEN + acl.len + sizeof(HMAC_PARAM) - 1 + EVP_MAX_MD_SIZE * 2 + 1;
 	
-	result->data = ngx_palloc(r->pool, result_size);
+	result->data = ngx_pnalloc(r->pool, result_size);
 	if (result->data == NULL)
 	{
 		return NGX_ERROR;

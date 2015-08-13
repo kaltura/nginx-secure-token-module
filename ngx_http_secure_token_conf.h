@@ -15,6 +15,7 @@ typedef ngx_int_t (*ngx_http_secure_token_build_t)(
 
 typedef struct {
 	ngx_flag_t tokenize_segments;
+	ngx_flag_t encrypt_uri;
 } ngx_http_secure_token_processor_conf_t;
 
 struct ngx_http_secure_token_loc_conf_s {
@@ -44,6 +45,11 @@ struct ngx_http_secure_token_loc_conf_s {
 	ngx_http_secure_token_build_t build_token;
 	ngx_http_secure_token_akamai_conf_t akamai;
 	ngx_http_secure_token_cloudfront_conf_t cloudfront;
+
+	ngx_str_t encrypt_uri_key;
+	ngx_str_t encrypt_uri_iv;
+	ngx_http_complex_value_t *encrypt_uri_part;
+	size_t encrypt_uri_hash_size;
 };
 
 #endif // _NGX_HTTP_SECURE_TOKEN_CONF_H_INCLUDED_
