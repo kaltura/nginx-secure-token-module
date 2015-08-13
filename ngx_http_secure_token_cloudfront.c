@@ -127,7 +127,7 @@ ngx_http_secure_token_cloudfront_sign(ngx_http_request_t* r, EVP_PKEY *private_k
 	EVP_MD_CTX md_ctx;
 	unsigned int siglen;
 
-	signature->data = ngx_palloc(r->pool, EVP_PKEY_size(private_key) + 1);
+	signature->data = ngx_pnalloc(r->pool, EVP_PKEY_size(private_key) + 1);
 	if (signature->data == NULL)
 	{
 		return NGX_ERROR;
@@ -180,7 +180,7 @@ ngx_http_secure_token_cloudfront_build(
 	}
 
 	// build the policy json
-	policy.data = ngx_palloc(r->pool, sizeof(POLICY_FORMAT) + acl.len + NGX_INT32_LEN);
+	policy.data = ngx_pnalloc(r->pool, sizeof(POLICY_FORMAT) + acl.len + NGX_INT32_LEN);
 	if (policy.data == NULL)
 	{
 		return NGX_ERROR;
@@ -196,7 +196,7 @@ ngx_http_secure_token_cloudfront_build(
 	}
 	
 	// build the token
-	result->data = ngx_palloc(
+	result->data = ngx_pnalloc(
 		r->pool, 
 		sizeof(POLICY_PARAM) - 1 + 
 		ngx_base64_encoded_length(policy.len) + 
