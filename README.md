@@ -217,7 +217,7 @@ Example 1:
 	...
   }
 ```
-  in this configuration only the value of secret_param will be encrypted/decrypted.
+  In this configuration, only the value of secret_param will be encrypted/decrypted.
 
 Example 2:  
 ```
@@ -225,7 +225,7 @@ Example 2:
     ...
   }
 ```
-  in this configuration everything following /base/ will be encrypted/decrypted.
+  In this configuration, everything following /base/ will be encrypted/decrypted.
   
 #### secure_token_encrypt_uri_hash_size
 * **syntax**: `secure_token_encrypt_uri_hash_size size`
@@ -269,7 +269,7 @@ The size in bytes of hash used to validate the uri after decryption, the value h
 		secure_token cloudfront;
 		secure_token_cloudfront_private_key_file /path/to/pem;
 		secure_token_cloudfront_key_pair_id ABCDEF;
-		secure_token_cloudfront_acl "$f5_protocol://$http_host$baseuri*";
+		secure_token_cloudfront_acl "$scheme://$http_host$baseuri*";
 		secure_token_types video/f4m;
 		
 		secure_token_expires_time 100d;
@@ -289,10 +289,7 @@ this enables the caching of the segments transparently by proxies.
 ```
 	location ~ ^/s/hls/enc/p/\d+/(sp/\d+/)?serveFlavor/ {
 		vod hls;
-		vod_mode mapped;
 		vod_secret_key "password$vod_filepath";
-		vod_upstream kalapi;
-		vod_upstream_extra_args "pathOnly=1";
 
 		secure_token akamai;
 		secure_token_akamai_key 1234;

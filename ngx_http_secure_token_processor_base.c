@@ -290,7 +290,7 @@ ngx_http_secure_token_url_state_machine(
 			if (ch == scheme_delimeter[ctx->scheme_pos])
 			{
 				ctx->scheme_pos++;
-				if (ctx->scheme_pos >= sizeof(scheme_delimeter)-1)
+				if (ctx->scheme_pos >= sizeof(scheme_delimeter) - 1)
 				{
 					ctx->state = STATE_URL_HOST;
 				}

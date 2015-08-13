@@ -126,6 +126,7 @@ ngx_http_secure_token_xml_processor(
 					ctx->base.tokenize = 1;
 					ctx->base.url_end_state = STATE_ATTR_NAME;
 					ctx->base.url_end_char = '"';
+					ctx->attr_name_len = 0;
 					break;
 				}
 

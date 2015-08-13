@@ -828,7 +828,7 @@ ngx_http_secure_token_filter_init(ngx_conf_t *cf)
 	// body filter
 	ngx_http_secure_token_install_body_filter();
 
-	// rewrite handler
+	// access handler
 	cmcf = ngx_http_conf_get_module_main_conf(cf, ngx_http_core_module);
 
 	h = ngx_array_push(&cmcf->phases[NGX_HTTP_ACCESS_PHASE].handlers);
