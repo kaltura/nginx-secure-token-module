@@ -209,19 +209,22 @@ Sets the encryption iv, the iv has to be 128 bits (32 hex characters)
 
 An expression that calculates the part of the URL that should be encrypted in regular expression locations.
 For non-regular expression locations, the encrypted part is everything following the path defined on the location block.
-For example:
-1. ```
+
+Example 1:
+```
   location /secret_param/([^/]+)/some_other_param/.* {
   	secure_token_encrypt_uri_part $1;
 	...
   }
-  ```
+```
   in this configuration only the value of secret_param will be encrypted/decrypted.
-2. ```
+
+Example 2:  
+```
   location /base/ {
     ...
   }
-  ```
+```
   in this configuration everything following /base/ will be encrypted/decrypted.
   
 #### secure_token_encrypt_uri_hash_size
