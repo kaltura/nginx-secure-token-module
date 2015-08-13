@@ -329,6 +329,12 @@ ngx_http_secure_token_encrypt_uri(ngx_http_request_t* r, ngx_str_t* src, ngx_str
 	rc = ngx_http_secure_token_get_encryted_part(r, src, 1, &encrypt_uri_part, &uri_prefix_len, &uri_suffix_len);
 	if (rc != NGX_OK || encrypt_uri_part.len == 0)
 	{
+		dest->data = ngx_pstrdup(r->pool, src);
+		if (dest->data == NULL)
+		{
+			return NGX_ERROR;
+		}
+		dest->len = src->len;
 		return rc;
 	}
 
