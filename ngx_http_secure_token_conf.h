@@ -20,6 +20,8 @@ typedef struct {
 
 struct ngx_http_secure_token_loc_conf_s {
 	ngx_uint_t  window;
+	time_t end_time;
+	ngx_http_complex_value_t *ip_address;
 	ngx_flag_t  avoid_cookies;
 	ngx_hash_t  processors_hash;
 

@@ -2,7 +2,10 @@
 #include "ngx_http_secure_token_filter_module.h"
 #include <openssl/pem.h>
 
-#define POLICY_FORMAT "{\"Statement\":[{\"Resource\":\"%V\",\"Condition\":{\"DateLessThan\":{\"AWS:EpochTime\":%uD}}}]}"
+#define POLICY_HEADER "{\"Statement\":[{\"Resource\":\"%V\",\"Condition\":{\"DateLessThan\":{\"AWS:EpochTime\":%uD}"		// DateLessThan is required
+#define POLICY_CONDITION_IPADDRESS ",\"IpAddress\":{\"AWS:SourceIp\":\"%V\"}"
+#define POLICY_FOOTER "}}]}"
+
 #define POLICY_PARAM "Policy="
 #define SIGNATURE_PARAM "&Signature="
 #define KEY_PAIR_ID_PARAM "&Key-Pair-Id="
@@ -167,10 +170,13 @@ ngx_http_secure_token_cloudfront_build(
 	ngx_http_secure_token_loc_conf_t *conf, 
 	ngx_str_t* result)
 {
+	ngx_str_t ip_address;
 	ngx_str_t signature;
 	ngx_str_t policy;
 	ngx_str_t acl;
 	ngx_int_t rc;
+	size_t policy_size;
+	time_t end_time;
 	u_char* p;
 
 	rc = ngx_http_secure_token_get_acl(r, conf->cloudfront.acl, &acl);
@@ -179,14 +185,37 @@ ngx_http_secure_token_cloudfront_build(
 		return rc;
 	}
 
+	// get the size of the policy json
+	policy_size = sizeof(POLICY_HEADER) + sizeof(POLICY_FOOTER) + acl.len + NGX_INT32_LEN;
+	if (conf->ip_address != NULL)
+	{
+		if (ngx_http_complex_value(
+			r,
+			conf->ip_address,
+			&ip_address) != NGX_OK)
+		{
+			return NGX_ERROR;
+		}
+
+		policy_size += sizeof(POLICY_CONDITION_IPADDRESS) + ip_address.len;
+	}
+
 	// build the policy json
-	policy.data = ngx_pnalloc(r->pool, sizeof(POLICY_FORMAT) + acl.len + NGX_INT32_LEN);
+	policy.data = ngx_pnalloc(r->pool, policy_size);
 	if (policy.data == NULL)
 	{
 		return NGX_ERROR;
 	}
 	
-	policy.len = ngx_sprintf(policy.data, POLICY_FORMAT, &acl, ngx_time() + conf->window) - policy.data;
+	end_time = (conf->end_time > 0) ? conf->end_time : (time_t)(ngx_time() + conf->window);
+	p = ngx_sprintf(policy.data, POLICY_HEADER, &acl, end_time);
+	if (conf->ip_address != NULL)
+	{
+		p = ngx_sprintf(p, POLICY_CONDITION_IPADDRESS, &ip_address);
+	}
+	p = ngx_copy(p, POLICY_FOOTER, sizeof(POLICY_FOOTER) - 1);
+
+	policy.len = p - policy.data;
 	
 	// sign the policy
 	rc = ngx_http_secure_token_cloudfront_sign(r, conf->cloudfront.private_key, &policy, &signature);
