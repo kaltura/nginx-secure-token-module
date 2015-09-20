@@ -30,6 +30,22 @@ Enables token generation of the requested type, supported types are: akamai, clo
 
 Sets the validity time of the token in seconds
 
+#### secure_token_end_time
+* **syntax**: `secure_token_end_time time`
+* **default**: `none`
+* **context**: `http`, `server`, `location`
+
+Sets the end time of the token, the time has to be specified in HTTP time format (e.g. Thu, 01 Jan 1970 00:00:00 GMT).
+When this parameter is set, it takes precedence over secure_token_window.
+
+#### secure_token_ip_address
+* **syntax**: `secure_token_ip_address address`
+* **default**: `none`
+* **context**: `http`, `server`, `location`
+
+Sets the IP address that should be embedded in the token.
+The parameter value can contain variables, e.g. $remote_addr/32 can be used to limit the token to the specific IP of the client.
+
 #### secure_token_avoid_cookies
 * **syntax**: `secure_token_avoid_cookies on/off`
 * **default**: `on`

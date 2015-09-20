@@ -16,6 +16,7 @@
 
 static char *ngx_conf_check_str_len_bounds(ngx_conf_t *cf, void *post, void *data);
 static char *ngx_conf_set_hex_str_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
+static char *ngx_conf_set_time_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 static char *ngx_http_secure_token_command(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 static void *ngx_http_secure_token_create_loc_conf(ngx_conf_t *cf);
 static char *ngx_http_secure_token_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child);
@@ -50,10 +51,24 @@ static ngx_command_t  ngx_http_secure_token_commands[] = {
 	NULL },
 
 	{ ngx_string("secure_token_window"),
-	NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
+	NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 	ngx_conf_set_num_slot,
 	NGX_HTTP_LOC_CONF_OFFSET,
 	offsetof(ngx_http_secure_token_loc_conf_t, window),
+	NULL },
+
+	{ ngx_string("secure_token_end_time"),
+	NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
+	ngx_conf_set_time_slot,
+	NGX_HTTP_LOC_CONF_OFFSET,
+	offsetof(ngx_http_secure_token_loc_conf_t, end_time),
+	NULL },
+
+	{ ngx_string("secure_token_ip_address"),
+	NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+	ngx_http_set_complex_value_slot,
+	NGX_HTTP_LOC_CONF_OFFSET,
+	offsetof(ngx_http_secure_token_loc_conf_t, ip_address),
 	NULL },
 
 	{ ngx_string("secure_token_avoid_cookies"),
@@ -312,6 +327,38 @@ ngx_conf_set_hex_str_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     return NGX_CONF_OK;
 }
 
+static char *
+ngx_conf_set_time_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+{
+	char  *p = conf;
+
+	time_t           *sp;
+	ngx_str_t        *value;
+	ngx_conf_post_t  *post;
+
+
+	sp = (time_t *)(p + cmd->offset);
+	if (*sp != NGX_CONF_UNSET) {
+		return "is duplicate";
+	}
+
+	value = cf->args->elts;
+
+	*sp = ngx_http_parse_time(value[1].data, value[1].len);
+	if (*sp == (time_t)NGX_ERROR) {
+		return "invalid value";
+	}
+
+	if (cmd->post) {
+		post = cmd->post;
+		return post->post_handler(cf, post, sp);
+	}
+
+	return NGX_CONF_OK;
+}
+
+
+
 // Note: copy of ngx_conf_check_num_bounds adjusted for string length validation
 static char *
 ngx_conf_check_str_len_bounds(ngx_conf_t *cf, void *post, void *data)
@@ -353,6 +400,7 @@ ngx_http_secure_token_create_loc_conf(ngx_conf_t *cf)
 	}
 	conf->build_token = NGX_CONF_UNSET_PTR;
 	conf->window = NGX_CONF_UNSET_UINT;
+	conf->end_time = NGX_CONF_UNSET;
 	conf->avoid_cookies = NGX_CONF_UNSET;
 	conf->filename_prefixes = NGX_CONF_UNSET_PTR;
 	conf->expires_time = NGX_CONF_UNSET;
@@ -406,6 +454,11 @@ ngx_http_secure_token_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
 	ngx_conf_merge_ptr_value(conf->build_token, prev->build_token, NULL);
 	
 	ngx_conf_merge_uint_value(conf->window, prev->window, 86400);
+	ngx_conf_merge_value(conf->end_time, prev->end_time, NGX_CONF_UNSET);
+	if (conf->ip_address == NULL)
+	{
+		conf->ip_address = prev->ip_address;
+	}
 	ngx_conf_merge_value(conf->avoid_cookies, prev->avoid_cookies, 1);
 	
 	ngx_conf_merge_ptr_value(conf->filename_prefixes, prev->filename_prefixes, NULL);
