@@ -354,7 +354,7 @@ ngx_http_secure_token_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
 	ngx_buf_t* b;
 	ngx_int_t rc;
 	u_char* copy_start;
-	u_char* pos;
+	u_char* pos = NULL;
 
 	ctx = ngx_http_get_module_ctx(r, ngx_http_secure_token_filter_module);
 
