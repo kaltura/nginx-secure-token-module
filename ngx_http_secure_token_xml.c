@@ -5,6 +5,7 @@ enum {
 	STATE_CLOSING_TAG_NAME,
 	STATE_ATTR_NAME,
 	STATE_ATTR_VALUE,
+	STATE_ATTR_VALUE_END,
 	STATE_ATTR_QUOTED_VALUE,
 };
 
@@ -39,24 +40,20 @@ ngx_http_secure_token_xml_is_relevant_attr(
 	return 0;
 }
 
-ngx_chain_t** 
+ngx_int_t
 ngx_http_secure_token_xml_processor(
 	ngx_http_request_t* r,
 	ngx_http_secure_token_processor_conf_t* conf,
 	ngx_http_secure_token_xml_node_attrs_t* nodes,
-	ngx_buf_t *in, 
-	ngx_http_secure_token_ctx_t* root_ctx,
-	ngx_http_secure_token_xml_ctx_t* ctx, 
-	ngx_chain_t** out)
+	u_char** pos,
+	u_char* buffer_end,
+	ngx_http_secure_token_xml_ctx_t* ctx,
+	ngx_http_secure_token_processor_output_t* output)
 {
-	u_char* last_sent;
-	u_char* cur_pos;
-	u_char* buffer_end;
+	u_char* cur_pos = *pos;
 	u_char ch;
 
-	last_sent = in->pos;
-	buffer_end = in->last;
-	for (cur_pos = in->pos; cur_pos < buffer_end; cur_pos++)
+	for (cur_pos = *pos; cur_pos < buffer_end; cur_pos++)
 	{
 		ch = *cur_pos;
 
@@ -96,6 +93,10 @@ ngx_http_secure_token_xml_processor(
 			}
 			break;
 
+		case STATE_ATTR_VALUE_END:		// ignore the " char, and move back to attribute name state
+			ctx->base.state = STATE_ATTR_NAME;
+			break;
+
 		case STATE_ATTR_NAME:
 			if (isspace(ch))
 			{
@@ -124,7 +125,7 @@ ngx_http_secure_token_xml_processor(
 					ctx->base.state = STATE_URL_SCHEME;
 					ctx->base.scheme_pos = 0;
 					ctx->base.tokenize = 1;
-					ctx->base.url_end_state = STATE_ATTR_NAME;
+					ctx->base.url_end_state = STATE_ATTR_VALUE_END;
 					ctx->base.url_end_char = '"';
 					ctx->attr_name_len = 0;
 					break;
@@ -145,31 +146,17 @@ ngx_http_secure_token_xml_processor(
 			break;
 
 		default:
-			out = ngx_http_secure_token_url_state_machine(
+			*pos = cur_pos;
+			return ngx_http_secure_token_url_state_machine(
 				r,
 				conf,
-				root_ctx,
 				&ctx->base,
+				pos,
 				buffer_end,
-				&cur_pos,
-				&last_sent,
-				out);
-			if (out == NULL)
-			{
-				return NULL;
-			}
-			break;
+				output);
 		}
 	}
 
-	if (cur_pos > last_sent)
-	{
-		out = ngx_http_secure_token_add_to_chain(r->pool, last_sent, cur_pos, 1, 0, out);
-		if (out == NULL)
-		{
-			return NULL;
-		}
-	}
-
-	return out;
+	*pos = cur_pos;
+	return NGX_OK;
 }

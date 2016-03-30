@@ -14,6 +14,11 @@ enum {
 };
 
 struct ngx_http_secure_token_ctx_s {
+	ngx_chain_t* out;
+	ngx_chain_t** last_out;
+	ngx_chain_t* busy;
+	ngx_chain_t* free;
+
 	ngx_str_t prefixed_tokens[TOKEN_PREFIX_COUNT];
 	ngx_str_t token;
 	ngx_http_secure_token_body_processor_t process;
@@ -105,132 +110,15 @@ static u_char scheme_delimeter[] = "://";
 // globals
 static ngx_http_output_body_filter_pt ngx_http_next_body_filter;
 
-ngx_chain_t**
-ngx_http_secure_token_add_to_chain(
-	ngx_pool_t* pool, 
-	u_char* start, 
-	u_char* end, 
-	ngx_flag_t memory, 
-	ngx_flag_t last_buf, 
-	ngx_chain_t** out)
-{
-	ngx_chain_t* cl;
-	ngx_buf_t* b;
-
-	b = ngx_calloc_buf(pool);
-	if (b == NULL)
-	{
-		return NULL;
-	}
-
-	cl = ngx_alloc_chain_link(pool);
-	if (cl == NULL)
-	{
-		return NULL;
-	}
-
-	b->pos = start;
-	b->last = end;
-	b->memory = memory;
-	b->last_buf = last_buf;
-	cl->buf = b;
-
-	*out = cl;
-	out = &cl->next;
-
-	return out;
-}
-
-static ngx_buf_t* 
-ngx_http_secure_token_get_token(ngx_http_secure_token_ctx_t* ctx, ngx_pool_t* pool, int index)
-{
-	ngx_buf_t* b;
-	u_char* p;
-
-	if (ctx->prefixed_tokens[index].len == 0)
-	{
-		ctx->prefixed_tokens[index].data = ngx_pnalloc(pool, token_prefixes[index].len + ctx->token.len);
-		if (ctx->prefixed_tokens[index].data == NULL)
-		{
-			return NULL;
-		}
-
-		p = ngx_copy(ctx->prefixed_tokens[index].data, token_prefixes[index].data, token_prefixes[index].len);
-		p = ngx_copy(p, ctx->token.data, ctx->token.len);
-
-		ctx->prefixed_tokens[index].len = p - ctx->prefixed_tokens[index].data;
-	}
-
-	b = ngx_calloc_buf(pool);
-	if (b == NULL)
-	{
-		return NULL;
-	}
-
-	b->pos = ctx->prefixed_tokens[index].data;
-	b->last = b->pos + ctx->prefixed_tokens[index].len;
-	b->memory = 1;
-
-	return b;
-}
-
-static ngx_chain_t**
-ngx_http_secure_token_add_token(
-	ngx_http_secure_token_ctx_t* ctx, 
-	ngx_pool_t* pool,
-	ngx_flag_t has_query,
-	u_char last_url_char,
-	ngx_chain_t** out)
-{
-	ngx_chain_t* cl;
-	int token_prefix;
-
-	cl = ngx_alloc_chain_link(pool);
-	if (cl == NULL)
-	{
-		return NULL;
-	}
-
-	if (has_query)
-	{
-		if (last_url_char == '?' || last_url_char == '&')
-		{
-			token_prefix = TOKEN_PREFIX_NONE;
-		}
-		else
-		{
-			token_prefix = TOKEN_PREFIX_AMPERSAND;
-		}
-	}
-	else
-	{
-		token_prefix = TOKEN_PREFIX_QUESTION;
-	}
-
-	cl->buf = ngx_http_secure_token_get_token(ctx, pool, token_prefix);
-	if (cl->buf == NULL)
-	{
-		return NULL;
-	}
-
-	*out = cl;
-	out = &cl->next;
-
-	return out;
-}
-
-ngx_chain_t**
+ngx_int_t
 ngx_http_secure_token_url_state_machine(
 	ngx_http_request_t* r,
 	ngx_http_secure_token_processor_conf_t* conf,
-	ngx_http_secure_token_ctx_t* root_ctx,
 	ngx_http_secure_token_base_ctx_t* ctx,
-	u_char* buffer_end,
 	u_char** cur_pos,
-	u_char** last_sent,
-	ngx_chain_t** out)
+	u_char* buffer_end,
+	ngx_http_secure_token_processor_output_t* output)
 {
-	ngx_str_t encrypted_uri;
 	ngx_int_t rc;
 	u_char* new_uri_path;
 	u_char ch;
@@ -244,44 +132,38 @@ ngx_http_secure_token_url_state_machine(
 			// end of url
 			if (conf->encrypt_uri && ctx->state == STATE_URL_PATH)
 			{
-				rc = ngx_http_secure_token_encrypt_uri(r, &ctx->uri_path, &encrypted_uri);
+				output->copy_input = 0;
+
+				rc = ngx_http_secure_token_encrypt_uri(r, &ctx->uri_path, &output->output_buffer);
 				if (rc != NGX_OK)
 				{
-					return NULL;
-				}
-
-				out = ngx_http_secure_token_add_to_chain(r->pool, encrypted_uri.data, encrypted_uri.data + encrypted_uri.len, 1, 0, out);
-				if (out == NULL)
-				{
-					return NULL;
+					return NGX_ERROR;
 				}
 			}
 
-			if (ctx->tokenize && root_ctx->token.len != 0)
+			if (ctx->tokenize)
 			{
-				if (*cur_pos > *last_sent)
+				if (ctx->state == STATE_URL_QUERY)
 				{
-					// todo: copy memory/temporary/mmap from original buffer
-					out = ngx_http_secure_token_add_to_chain(r->pool, *last_sent, *cur_pos, 1, 0, out);
-					if (out == NULL)
+					if (ctx->last_url_char == '?' || ctx->last_url_char == '&')
 					{
-						return NULL;
+						output->token_index = TOKEN_PREFIX_NONE;
 					}
-
-					*last_sent = *cur_pos;
+					else
+					{
+						output->token_index = TOKEN_PREFIX_AMPERSAND;
+					}
 				}
-
-				out = ngx_http_secure_token_add_token(
-					root_ctx, r->pool, ctx->state == STATE_URL_QUERY, ctx->last_url_char, out);
-				if (out == NULL)
+				else
 				{
-					return NULL;
+					output->token_index = TOKEN_PREFIX_QUESTION;
 				}
 			}
 
 			ctx->last_url_char = ch;
 			ctx->state = ctx->url_end_state;
-			return out;
+			
+			return NGX_OK;
 		}
 
 		switch (ctx->state)
@@ -311,15 +193,10 @@ ngx_http_secure_token_url_state_machine(
 			ctx->uri_path.len = 0;
 			ctx->last_url_char = ch;
 
-			if (conf->encrypt_uri && *cur_pos > *last_sent)
+			if (conf->encrypt_uri)
 			{
-				out = ngx_http_secure_token_add_to_chain(r->pool, *last_sent, *cur_pos, 1, 0, out);
-				if (out == NULL)
-				{
-					return NULL;
-				}
-
-				*last_sent = *cur_pos;
+				// flush any buffered data before starting to process the encrypted part
+				return NGX_OK;
 			}
 			// fallthrough
 
@@ -337,7 +214,7 @@ ngx_http_secure_token_url_state_machine(
 						new_uri_path = ngx_pnalloc(r->pool, ctx->uri_path_alloc_size);
 						if (new_uri_path == NULL)
 						{
-							return NULL;
+							return NGX_ERROR;
 						}
 
 						ngx_memcpy(new_uri_path, ctx->uri_path.data, ctx->uri_path.len);
@@ -347,7 +224,7 @@ ngx_http_secure_token_url_state_machine(
 					ctx->uri_path.data[ctx->uri_path.len] = ch;
 					ctx->uri_path.len++;
 
-					(*last_sent)++;		// dont output this char
+					output->copy_input = 0;
 				}
 				break;
 			}
@@ -356,17 +233,7 @@ ngx_http_secure_token_url_state_machine(
 
 			if (conf->encrypt_uri)
 			{
-				rc = ngx_http_secure_token_encrypt_uri(r, &ctx->uri_path, &encrypted_uri);
-				if (rc != NGX_OK)
-				{
-					return NULL;
-				}
-
-				out = ngx_http_secure_token_add_to_chain(r->pool, encrypted_uri.data, encrypted_uri.data + encrypted_uri.len, 1, 0, out);
-				if (out == NULL)
-				{
-					return NULL;
-				}
+				return ngx_http_secure_token_encrypt_uri(r, &ctx->uri_path, &output->output_buffer);
 			}
 			break;
 
@@ -376,65 +243,284 @@ ngx_http_secure_token_url_state_machine(
 		}
 	}
 
-	return out;
+	return NGX_OK;
 }
 
 static ngx_int_t
+ngx_http_secure_token_get_token_buffer(
+	ngx_http_request_t *r, 
+	ngx_http_secure_token_ctx_t* ctx, 
+	ngx_buf_t* b,
+	int token_index)
+{
+	u_char* p;
+
+	if (ctx->prefixed_tokens[token_index].len == 0)
+	{
+		ctx->prefixed_tokens[token_index].data = ngx_pnalloc(r->pool, token_prefixes[token_index].len + ctx->token.len);
+		if (ctx->prefixed_tokens[token_index].data == NULL)
+		{
+			return NGX_ERROR;
+		}
+
+		p = ngx_copy(ctx->prefixed_tokens[token_index].data, token_prefixes[token_index].data, token_prefixes[token_index].len);
+		p = ngx_copy(p, ctx->token.data, ctx->token.len);
+
+		ctx->prefixed_tokens[token_index].len = p - ctx->prefixed_tokens[token_index].data;
+	}
+
+	ngx_memzero(b, sizeof(ngx_buf_t));
+
+	b->memory = 1;
+	b->pos = ctx->prefixed_tokens[token_index].data;
+	b->last = ctx->prefixed_tokens[token_index].data + ctx->prefixed_tokens[token_index].len;
+
+	return NGX_OK;
+}
+
+// A slightly simplified version of ngx_http_sub_output
+static ngx_int_t
+ngx_http_secure_token_output(ngx_http_request_t *r, ngx_http_secure_token_ctx_t *ctx)
+{
+	ngx_int_t rc;
+	ngx_buf_t *b;
+	ngx_chain_t *cl;
+
+#if 1
+	b = NULL;
+	for (cl = ctx->out; cl; cl = cl->next) {
+		ngx_log_debug2(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+			"secure token out: %p %p", cl->buf, cl->buf->pos);
+		if (cl->buf == b) {
+			ngx_log_error(NGX_LOG_ALERT, r->connection->log, 0,
+				"the same buf was used in secure token");
+			ngx_debug_point();
+			return NGX_ERROR;
+		}
+		b = cl->buf;
+	}
+#endif
+
+	rc = ngx_http_next_body_filter(r, ctx->out);
+
+	if (ctx->busy == NULL) {
+		ctx->busy = ctx->out;
+
+	}
+	else {
+		for (cl = ctx->busy; cl->next; cl = cl->next) { /* void */ }
+		cl->next = ctx->out;
+	}
+
+	ctx->out = NULL;
+	ctx->last_out = &ctx->out;
+
+	while (ctx->busy) {
+
+		cl = ctx->busy;
+		b = cl->buf;
+
+		if (ngx_buf_size(b) != 0) {
+			break;
+		}
+
+		if (b->shadow) {
+			b->shadow->pos = b->shadow->last;
+		}
+
+		ctx->busy = cl->next;
+
+		if (ngx_buf_in_memory(b) || b->in_file) {
+			/* add data bufs only to the free buf chain */
+
+			cl->next = ctx->free;
+			ctx->free = cl;
+		}
+	}
+
+	return rc;
+}
+
+// the implementation is based on ngx_http_sub_body_filter
+static ngx_int_t
 ngx_http_secure_token_body_filter(ngx_http_request_t *r, ngx_chain_t *in)
 {
+	ngx_http_secure_token_processor_output_t output;
 	ngx_http_secure_token_loc_conf_t *conf;
 	ngx_http_secure_token_ctx_t* ctx;
-	ngx_chain_t** cur_out;
-	ngx_chain_t* out;
-	ngx_flag_t last_buf;
+	ngx_chain_t* in_copy = NULL;
+	ngx_chain_t* cl;
+	ngx_buf_t* buf;
+	ngx_buf_t* b;
+	ngx_int_t rc;
+	u_char* copy_start;
+	u_char* pos = NULL;
 
 	ctx = ngx_http_get_module_ctx(r, ngx_http_secure_token_filter_module);
 
-	if (ctx == NULL || in == NULL)
+	if (ctx == NULL) {
+		return ngx_http_next_body_filter(r, in);
+	}
+
+	if ((in == NULL
+		&& ctx->busy == NULL))
 	{
 		return ngx_http_next_body_filter(r, in);
 	}
 
 	conf = ngx_http_get_module_loc_conf(r, ngx_http_secure_token_filter_module);
 
-	cur_out = &out;
-	last_buf = 0;
+	/* add the incoming chain to the chain in_copy */
 
-	for (; in != NULL; in = in->next)
-	{
-		if (in->buf == NULL)
-		{
+	if (in) {
+		if (ngx_chain_add_copy(r->pool, &in_copy, in) != NGX_OK) {
+			return NGX_ERROR;
+		}
+	}
+
+	ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+		"http secure token filter \"%V\"", &r->uri);
+
+	buf = NULL;
+
+	while (in_copy || buf) {
+
+		if (buf == NULL) {
+			buf = in_copy->buf;
+			in_copy = in_copy->next;
+			pos = buf->pos;
+		}
+
+		b = NULL;
+
+		while (pos < buf->last) {
+
+			copy_start = pos;
+
+			output.copy_input = 1;
+			output.output_buffer.len = 0;
+			output.token_index = -1;
+
+			rc = ctx->process(
+				r,
+				&conf->processor_conf,
+				ctx->processor_params,
+				&pos, 
+				buf->last,
+				(u_char*)ctx + ctx->processor_context_offset, 
+				&output);
+
+			ngx_log_debug3(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+				"process: %d, %p-%p",
+				rc, copy_start, pos);
+
+			if (rc == NGX_ERROR) {
+				return rc;
+			}
+
+			if (output.copy_input && copy_start != pos) {
+
+				cl = ngx_chain_get_free_buf(r->pool, &ctx->free);
+				if (cl == NULL) {
+					return NGX_ERROR;
+				}
+
+				b = cl->buf;
+
+				ngx_memcpy(b, buf, sizeof(ngx_buf_t));
+
+				b->pos = copy_start;
+				b->last = pos;
+				b->shadow = NULL;
+				b->last_buf = 0;
+				b->last_in_chain = 0;
+				b->recycled = 0;
+
+				if (b->in_file) {
+					b->file_last = b->file_pos + (b->last - buf->pos);
+					b->file_pos += b->pos - buf->pos;
+				}
+
+				*ctx->last_out = cl;
+				ctx->last_out = &cl->next;
+			}
+
+			if (output.output_buffer.len != 0)
+			{
+				cl = ngx_chain_get_free_buf(r->pool, &ctx->free);
+				if (cl == NULL) {
+					return NGX_ERROR;
+				}
+
+				b = cl->buf;
+
+				ngx_memzero(b, sizeof(ngx_buf_t));
+
+				b->memory = 1;
+				b->pos = output.output_buffer.data;
+				b->last = output.output_buffer.data + output.output_buffer.len;
+
+				*ctx->last_out = cl;
+				ctx->last_out = &cl->next;
+			}
+
+			if (output.token_index >= 0 && ctx->token.len != 0)
+			{
+				cl = ngx_chain_get_free_buf(r->pool, &ctx->free);
+				if (cl == NULL) {
+					return NGX_ERROR;
+				}
+
+				b = cl->buf;
+
+				rc = ngx_http_secure_token_get_token_buffer(r, ctx, b, output.token_index);
+				if (rc != NGX_OK)
+				{
+					return rc;
+				}
+
+				*ctx->last_out = cl;
+				ctx->last_out = &cl->next;
+			}
+
 			continue;
 		}
 
-		last_buf |= in->buf->last_buf;
-
-		cur_out = ctx->process(
-			r,
-			&conf->processor_conf,
-			ctx->processor_params,
-			in->buf,
-			ctx,
-			(u_char*)ctx + ctx->processor_context_offset,
-			cur_out);
-		if (cur_out == NULL)
+		if (buf->last_buf || buf->flush || buf->sync
+			|| ngx_buf_in_memory(buf))
 		{
-			return NGX_ERROR;
+			if (b == NULL) {
+				cl = ngx_chain_get_free_buf(r->pool, &ctx->free);
+				if (cl == NULL) {
+					return NGX_ERROR;
+				}
+
+				b = cl->buf;
+
+				ngx_memzero(b, sizeof(ngx_buf_t));
+
+				b->sync = 1;
+
+				*ctx->last_out = cl;
+				ctx->last_out = &cl->next;
+			}
+
+			b->last_buf = buf->last_buf;
+			b->last_in_chain = buf->last_in_chain;
+			b->flush = buf->flush;
+			b->shadow = buf;
+
+			b->recycled = buf->recycled;
 		}
+
+		buf = NULL;
 	}
 
-	if (last_buf)
-	{
-		cur_out = ngx_http_secure_token_add_to_chain(r->pool, NULL, NULL, 0, 1, cur_out);
-		if (cur_out == NULL)
-		{
-			return NGX_ERROR;
-		}
+	if (ctx->out == NULL && ctx->busy == NULL) {
+		return NGX_OK;
 	}
 
-	*cur_out = NULL;
-
-	return ngx_http_next_body_filter(r, out);
+	return ngx_http_secure_token_output(r, ctx);
 }
 
 ngx_int_t
@@ -501,6 +587,8 @@ ngx_http_secure_token_init_body_filter(ngx_http_request_t *r, ngx_str_t* token)
 	ctx->processor_params = processor->processor_params;
 
 	ngx_http_set_ctx(r, ctx, ngx_http_secure_token_filter_module);
+
+	ctx->last_out = &ctx->out;
 
 	r->filter_need_in_memory = 1;
 
