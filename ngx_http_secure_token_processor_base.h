@@ -33,34 +33,30 @@ typedef struct {
 	ngx_str_t uri_path;
 } ngx_http_secure_token_base_ctx_t;
 
-typedef ngx_chain_t** (*ngx_http_secure_token_body_processor_t)(
+typedef struct {
+	ngx_flag_t copy_input;
+	ngx_str_t output_buffer;
+	int token_index;
+} ngx_http_secure_token_processor_output_t;
+
+typedef ngx_int_t (*ngx_http_secure_token_body_processor_t)(
 	ngx_http_request_t* r,
 	ngx_http_secure_token_processor_conf_t* conf,
 	void* params,
-	ngx_buf_t* in,
-	ngx_http_secure_token_ctx_t* root_ctx,
+	u_char** pos,
+	u_char* last,
 	void* ctx,
-	ngx_chain_t** out);
+	ngx_http_secure_token_processor_output_t* output);
 
 // processor utility functions
 
-ngx_chain_t** ngx_http_secure_token_add_to_chain(
-	ngx_pool_t* pool,
-	u_char* start,
-	u_char* end,
-	ngx_flag_t memory,
-	ngx_flag_t last_buf,
-	ngx_chain_t** out);
-
-ngx_chain_t** ngx_http_secure_token_url_state_machine(
+ngx_int_t ngx_http_secure_token_url_state_machine(
 	ngx_http_request_t* r,
 	ngx_http_secure_token_processor_conf_t* conf,
-	ngx_http_secure_token_ctx_t* root_ctx,
 	ngx_http_secure_token_base_ctx_t* ctx,
-	u_char* buffer_end, 
 	u_char** cur_pos,
-	u_char** last_sent, 
-	ngx_chain_t** out);
+	u_char* buffer_end,
+	ngx_http_secure_token_processor_output_t* output);
 
 // main functions
 

@@ -18,24 +18,21 @@ enum {
 // #EXT-X-KEY:METHOD=AES-128,URI="encryption.key"
 // 1         2      36      2   34              6
 
-ngx_chain_t** 
+ngx_int_t
 ngx_http_secure_token_m3u8_processor(
 	ngx_http_request_t* r,
 	ngx_http_secure_token_processor_conf_t* conf,
 	void* params,
-	ngx_buf_t *in, 
-	ngx_http_secure_token_ctx_t* root_ctx,
-	ngx_http_secure_token_m3u8_ctx_t* ctx, 
-	ngx_chain_t** out)
+	u_char** pos,
+	u_char* buffer_end,
+	ngx_http_secure_token_m3u8_ctx_t* ctx,
+	ngx_http_secure_token_processor_output_t* output)
 {
-	u_char* last_sent;
+	ngx_int_t rc;
 	u_char* cur_pos;
-	u_char* buffer_end;
 	u_char ch;
 
-	last_sent = in->pos;
-	buffer_end = in->last;
-	for (cur_pos = in->pos; cur_pos < buffer_end; cur_pos++)
+	for (cur_pos = *pos; cur_pos < buffer_end; cur_pos++)
 	{
 		ch = *cur_pos;
 
@@ -161,38 +158,24 @@ ngx_http_secure_token_m3u8_processor(
 			break;
 
 		default:
-			out = ngx_http_secure_token_url_state_machine(
+			*pos = cur_pos;
+			rc = ngx_http_secure_token_url_state_machine(
 				r,
 				conf,
-				root_ctx,
 				&ctx->base,
+				pos,
 				buffer_end,
-				&cur_pos,
-				&last_sent,
-				out);
-			if (out == NULL)
-			{
-				return NULL;
-			}
+				output);
 
 			if (ctx->base.last_url_char == '\n')
 			{
 				ctx->base.state = STATE_INITIAL;
 			}
 
-			break;
+			return rc;
 		}
 	}
 
-	if (cur_pos > last_sent)
-	{
-		// todo: copy memory/temporary/mmap from original buffer
-		out = ngx_http_secure_token_add_to_chain(r->pool, last_sent, cur_pos, 1, 0, out);
-		if (out == NULL)
-		{
-			return NULL;
-		}
-	}
-
-	return out;
+	*pos = cur_pos;
+	return NGX_OK;
 }

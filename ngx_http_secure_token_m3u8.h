@@ -19,14 +19,13 @@ typedef struct {
 } ngx_http_secure_token_m3u8_ctx_t;
 
 // functions
-ngx_chain_t**
-ngx_http_secure_token_m3u8_processor(
+ngx_int_t ngx_http_secure_token_m3u8_processor(
 	ngx_http_request_t* r,
 	ngx_http_secure_token_processor_conf_t* conf,
 	void* params,
-	ngx_buf_t *in,
-	ngx_http_secure_token_ctx_t* root_ctx,
+	u_char** pos,
+	u_char* last,
 	ngx_http_secure_token_m3u8_ctx_t* ctx,
-	ngx_chain_t** out);
+	ngx_http_secure_token_processor_output_t* output);
 
 #endif // _NGX_HTTP_SECURE_TOKEN_M3U8_H_INCLUDED_
