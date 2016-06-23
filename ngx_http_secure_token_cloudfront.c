@@ -24,6 +24,7 @@ ngx_http_secure_token_cloudfront_merge_conf(
 	ngx_http_secure_token_cloudfront_conf_t *conf,
 	ngx_http_secure_token_cloudfront_conf_t *prev)
 {
+	ngx_pool_cleanup_t* cln;
 	BIO *in;
 
 	if (conf->acl == NULL)
@@ -52,6 +53,12 @@ ngx_http_secure_token_cloudfront_merge_conf(
 
 	if (conf->private_key_file.len != 0)
 	{
+		cln = ngx_pool_cleanup_add(cf->pool, 0);
+		if (cln == NULL)
+		{
+			return NGX_CONF_ERROR;
+		}
+
 		in = BIO_new_file((char *) conf->private_key_file.data, "r");
 		if (in == NULL) 
 		{
@@ -59,12 +66,16 @@ ngx_http_secure_token_cloudfront_merge_conf(
 		}
 		
 		conf->private_key = PEM_read_bio_PrivateKey(in, NULL, NULL, NULL);
+
+		BIO_free(in);
+
 		if (conf->private_key == NULL)
 		{
 			return "cannot be loaded";
 		}
-		
-		BIO_free(in);
+
+		cln->handler = (ngx_pool_cleanup_pt)EVP_PKEY_free;
+		cln->data = conf->private_key;
 	}
 
 	return NGX_CONF_OK;
