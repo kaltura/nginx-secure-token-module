@@ -12,7 +12,8 @@ enum {
 static ngx_flag_t
 ngx_http_secure_token_xml_is_relevant_attr(
 	ngx_http_secure_token_xml_ctx_t* ctx,
-	ngx_http_secure_token_xml_node_attrs_t* nodes)
+	ngx_http_secure_token_xml_node_attrs_t* nodes,
+	size_t attr_name_len)
 {
 	ngx_http_secure_token_xml_node_attrs_t* cur_node;
 	ngx_str_t* cur_attr;
@@ -25,9 +26,24 @@ ngx_http_secure_token_xml_is_relevant_attr(
 			continue;
 		}
 
+		if (cur_node->attr_names == NULL)
+		{
+			if (attr_name_len != 0)
+			{
+				continue;
+			}
+
+			return 1;
+		}
+
+		if (attr_name_len == 0)
+		{
+			continue;
+		}
+
 		for (cur_attr = cur_node->attr_names; cur_attr->len != 0; cur_attr++)
 		{
-			if (ctx->attr_name_len != cur_attr->len ||
+			if (attr_name_len != cur_attr->len ||
 				ngx_strncasecmp(ctx->attr_name, cur_attr->data, cur_attr->len) != 0)
 			{
 				continue;
@@ -80,6 +96,17 @@ ngx_http_secure_token_xml_processor(
 			}
 			else if (ch == '>')
 			{
+				if (ctx->base.state == STATE_TAG_NAME && 
+					ngx_http_secure_token_xml_is_relevant_attr(ctx, nodes, 0))
+				{
+					ctx->base.state = STATE_URL_SCHEME;
+					ctx->base.scheme_pos = 0;
+					ctx->base.tokenize = 1;
+					ctx->base.url_end_state = STATE_INITIAL;
+					ctx->base.url_end_char = '<';
+					break;
+				}
+
 				ctx->base.state = STATE_INITIAL;
 			}
 			else if (ch == '/' && ctx->tag_name_len == 0)
@@ -108,6 +135,16 @@ ngx_http_secure_token_xml_processor(
 			}
 			else if (ch == '>')
 			{
+				if (ngx_http_secure_token_xml_is_relevant_attr(ctx, nodes, 0))
+				{
+					ctx->base.state = STATE_URL_SCHEME;
+					ctx->base.scheme_pos = 0;
+					ctx->base.tokenize = 1;
+					ctx->base.url_end_state = STATE_INITIAL;
+					ctx->base.url_end_char = '<';
+					break;
+				}
+
 				ctx->base.state = STATE_INITIAL;
 			}
 			else if (ctx->attr_name_len < XML_MAX_ATTR_NAME_LEN)
@@ -120,7 +157,7 @@ ngx_http_secure_token_xml_processor(
 		case STATE_ATTR_VALUE:
 			if (ch == '"')
 			{
-				if (ngx_http_secure_token_xml_is_relevant_attr(ctx, nodes))
+				if (ngx_http_secure_token_xml_is_relevant_attr(ctx, nodes, ctx->attr_name_len))
 				{
 					ctx->base.state = STATE_URL_SCHEME;
 					ctx->base.scheme_pos = 0;
