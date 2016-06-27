@@ -2,6 +2,7 @@
 #include "ngx_http_secure_token_m3u8.h"
 
 static u_char encryption_key_tag[] = "EXT-X-KEY";
+static u_char ext_media_tag[] = "EXT-X-MEDIA";
 static u_char uri_attr_name[] = "URI";
 
 enum {
@@ -97,17 +98,21 @@ ngx_http_secure_token_m3u8_processor(
 		case STATE_ATTR_VALUE:
 			if (ch == '"')
 			{
-				if (ctx->tag_name_len == sizeof(encryption_key_tag) - 1 &&
-					ngx_memcmp(ctx->tag_name, encryption_key_tag, sizeof(encryption_key_tag) - 1) == 0 &&
-					ctx->attr_name_len == sizeof(uri_attr_name) - 1 &&
+				if (ctx->attr_name_len == sizeof(uri_attr_name) - 1 &&
 					ngx_memcmp(ctx->attr_name, uri_attr_name, sizeof(uri_attr_name) - 1) == 0)
 				{
-					ctx->base.state = STATE_URL_SCHEME;
-					ctx->base.scheme_pos = 0;
-					ctx->base.tokenize = 1;
-					ctx->base.url_end_state = STATE_ATTR_WAIT_DELIM;
-					ctx->base.url_end_char = '"';
-					break;
+					if ((ctx->tag_name_len == sizeof(encryption_key_tag) - 1 &&
+						ngx_memcmp(ctx->tag_name, encryption_key_tag, sizeof(encryption_key_tag) - 1) == 0) ||
+						(ctx->tag_name_len == sizeof(ext_media_tag) - 1 &&
+						ngx_memcmp(ctx->tag_name, ext_media_tag, sizeof(ext_media_tag) - 1) == 0))
+					{
+						ctx->base.state = STATE_URL_SCHEME;
+						ctx->base.scheme_pos = 0;
+						ctx->base.tokenize = 1;
+						ctx->base.url_end_state = STATE_ATTR_WAIT_DELIM;
+						ctx->base.url_end_char = '"';
+						break;
+					}
 				}
 				ctx->base.state = STATE_ATTR_QUOTED_VALUE;
 			}

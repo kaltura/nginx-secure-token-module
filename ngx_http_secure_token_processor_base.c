@@ -58,6 +58,7 @@ static ngx_http_secure_token_xml_node_attrs_t mpd_nodes[] = {
 	{ ngx_string("SegmentTemplate"), mpd_segment_template_attrs },
 	{ ngx_string("Initialization"), mpd_initialization_attrs },
 	{ ngx_string("SegmentURL"), mpd_segmenturl_attrs },
+	{ ngx_string("BaseURL"), NULL },
 	{ ngx_null_string, NULL }
 };
 
