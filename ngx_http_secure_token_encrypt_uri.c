@@ -4,6 +4,10 @@
 #include <openssl/evp.h>
 #include <ngx_md5.h>
 
+#ifndef MD5_DIGEST_LENGTH
+#define MD5_DIGEST_LENGTH (16)
+#endif // MD5_DIGEST_LENGTH
+
 #ifndef AES_BLOCK_SIZE
 #define AES_BLOCK_SIZE (16)
 #endif // AES_BLOCK_SIZE
