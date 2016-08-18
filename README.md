@@ -44,7 +44,7 @@ When this parameter is set, it takes precedence over secure_token_window.
 * **context**: `http`, `server`, `location`
 
 Sets the IP address that should be embedded in the token.
-The parameter value can contain variables, e.g. $remote_addr/32 can be used to limit the token to the specific IP of the client.
+The parameter value can contain variables, e.g. with CloudFront $remote_addr/32 can be used to limit the token to the specific IP of the client.
 
 #### secure_token_avoid_cookies
 * **syntax**: `secure_token_avoid_cookies on/off`
@@ -154,7 +154,8 @@ Sets the content type that should be parsed as f4m for token insertion
 * **default**: `empty`
 * **context**: `http`, `server`, `location`
 
-Sets the secret key
+Sets the secret key.
+The parameter value can contain variables.
 
 #### secure_token_akamai_param_name
 * **syntax**: `secure_token_akamai_param_name name`

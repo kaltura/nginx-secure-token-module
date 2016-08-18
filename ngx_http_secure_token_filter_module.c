@@ -8,6 +8,7 @@
 #include "ngx_http_secure_token_encrypt_uri.h"
 #include "ngx_http_secure_token_cloudfront.h"
 #include "ngx_http_secure_token_akamai.h"
+#include "ngx_http_secure_token_utils.h"
 #include "ngx_http_secure_token_conf.h"
 #include "ngx_http_secure_token_m3u8.h"
 #include "ngx_http_secure_token_xml.h"
@@ -269,31 +270,12 @@ ngx_http_secure_token_command(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 	return NGX_CONF_OK;
 }
 
-static int 
-ngx_conf_get_hex_char_value(int ch)
-{
-	if (ch >= '0' && ch <= '9') {
-		return (ch - '0');
-	}
-
-	ch = (ch | 0x20);		// lower case
-
-	if (ch >= 'a' && ch <= 'f') {
-		return (ch - 'a' + 10);
-	}
-	
-	return -1;
-}
-
 static char *
 ngx_conf_set_hex_str_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
     ngx_str_t *field;
 	ngx_str_t *value;
-    u_char *p;
-	size_t i;
-	int digit1;
-	int digit2;
+	ngx_int_t rc;
 
     field = (ngx_str_t *) ((u_char*)conf + cmd->offset);
 
@@ -303,26 +285,14 @@ ngx_conf_set_hex_str_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 
     value = cf->args->elts;
 
-	if (value[1].len & 0x1) {
-		return "length is odd";
-	}
-	
-	field->data = ngx_palloc(cf->pool, value[1].len >> 1);
-	if (field->data == NULL) {
-		return "alloc failed";
-	}
-	p = field->data;
-	
-	for (i = 0; i < value[1].len; i += 2)
+	rc = ngx_http_secure_token_decode_hex(
+		cf->pool,
+		&value[1],
+		field);
+	if (rc != NGX_OK)
 	{
-		digit1 = ngx_conf_get_hex_char_value(value[1].data[i]);
-		digit2 = ngx_conf_get_hex_char_value(value[1].data[i + 1]);
-		if (digit1 < 0 || digit2 < 0) {
-			return "contains non hex chars";
-		}
-		*p++ = (digit1 << 4) | digit2;
+		return "invalid hex string";
 	}
-	field->len = p - field->data;
 
     return NGX_CONF_OK;
 }
