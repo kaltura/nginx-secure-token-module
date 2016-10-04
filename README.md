@@ -325,6 +325,8 @@ this enables the caching of the segments transparently by proxies.
 		akamai_token_validate_uri_filename_prefix index;
 	}
 ```
+Note: this configuration requires the module https://github.com/kaltura/nginx-akamai-token-validate-module
+in addition to nginx-secure-token-module
 
 ### Adding token security on top of an existing HDS/HLS live stream
 ```
@@ -345,6 +347,8 @@ this enables the caching of the segments transparently by proxies.
 		akamai_token_validate_strip_token on;
 	}
 ```
+Note: this configuration requires the module https://github.com/kaltura/nginx-akamai-token-validate-module
+in addition to nginx-secure-token-module
 
 ### URI encryption
 ```
