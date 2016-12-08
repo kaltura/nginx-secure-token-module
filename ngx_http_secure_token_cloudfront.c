@@ -1,7 +1,9 @@
 #include "ngx_http_secure_token_cloudfront.h"
 #include "ngx_http_secure_token_filter_module.h"
+#include "ngx_http_secure_token_utils.h"
 #include <openssl/pem.h>
 
+// constants
 #define POLICY_HEADER "{\"Statement\":[{\"Resource\":\"%V\",\"Condition\":{\"DateLessThan\":{\"AWS:EpochTime\":%uD}"		// DateLessThan is required
 #define POLICY_CONDITION_IPADDRESS ",\"IpAddress\":{\"AWS:SourceIp\":\"%V\"}"
 #define POLICY_FOOTER "}}]}"
@@ -10,177 +12,70 @@
 #define SIGNATURE_PARAM "&Signature="
 #define KEY_PAIR_ID_PARAM "&Key-Pair-Id="
 
-void
-ngx_http_secure_token_cloudfront_create_conf(
-	ngx_conf_t *cf,
-	ngx_http_secure_token_cloudfront_conf_t *conf)
-{
-}
+// typedefs
+typedef struct {
+	ngx_http_complex_value_t *acl;
+	ngx_str_t key_pair_id;
+	EVP_PKEY *private_key;
+	ngx_http_complex_value_t *ip_address;
+	ngx_secure_token_time_t end;
+} ngx_secure_token_cloudfront_token_t;
 
-char *
-ngx_http_secure_token_cloudfront_merge_conf(
-	ngx_conf_t *cf,
-	ngx_http_secure_token_loc_conf_t *base,
-	ngx_http_secure_token_cloudfront_conf_t *conf,
-	ngx_http_secure_token_cloudfront_conf_t *prev)
-{
-	ngx_pool_cleanup_t* cln;
-	BIO *in;
+// globals
+static ngx_command_t ngx_http_secure_token_cloudfront_cmds[] = {
+	{ ngx_string("acl"),
+	NGX_CONF_TAKE1,
+	ngx_http_set_complex_value_slot,
+	0,
+	offsetof(ngx_secure_token_cloudfront_token_t, acl),
+	NULL },
 
-	if (conf->acl == NULL)
-	{
-		conf->acl = prev->acl;
-	}
-	ngx_conf_merge_str_value(conf->key_pair_id, prev->key_pair_id, "");	
-	ngx_conf_merge_str_value(conf->private_key_file, prev->private_key_file, "");
+	{ ngx_string("key_pair_id"),
+	NGX_CONF_TAKE1,
+	ngx_conf_set_str_slot,
+	0,
+	offsetof(ngx_secure_token_cloudfront_token_t, key_pair_id),
+	NULL },
 
-	if (base->build_token == ngx_http_secure_token_cloudfront_build)
-	{
-		if (conf->key_pair_id.len == 0)
-		{
-			ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-				"\"secure_token_cloudfront_key_pair_id\" is mandatory for cloudfront tokens");
-			return NGX_CONF_ERROR;
-		}
+	{ ngx_string("private_key_file"),
+	NGX_CONF_TAKE1,
+	ngx_http_secure_token_conf_set_private_key_slot,
+	0,
+	offsetof(ngx_secure_token_cloudfront_token_t, private_key),
+	NULL },
 
-		if (conf->private_key_file.len == 0)
-		{
-			ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-				"\"secure_token_cloudfront_private_key_file\" is mandatory for cloudfront tokens");
-			return NGX_CONF_ERROR;
-		}
-	}
+	{ ngx_string("ip_address"),
+	NGX_CONF_TAKE1,
+	ngx_http_set_complex_value_slot,
+	0,
+	offsetof(ngx_secure_token_cloudfront_token_t, ip_address),
+	NULL },
 
-	if (conf->private_key_file.len != 0)
-	{
-		cln = ngx_pool_cleanup_add(cf->pool, 0);
-		if (cln == NULL)
-		{
-			return NGX_CONF_ERROR;
-		}
+	{ ngx_string("end"),
+	NGX_CONF_TAKE1,
+	ngx_http_secure_token_conf_set_time_slot,
+	0,
+	offsetof(ngx_secure_token_cloudfront_token_t, end),
+	NULL },
+};
 
-		in = BIO_new_file((char *) conf->private_key_file.data, "r");
-		if (in == NULL) 
-		{
-			return "cannot be opened";
-		}
-		
-		conf->private_key = PEM_read_bio_PrivateKey(in, NULL, NULL, NULL);
-
-		BIO_free(in);
-
-		if (conf->private_key == NULL)
-		{
-			return "cannot be loaded";
-		}
-
-		cln->handler = (ngx_pool_cleanup_pt)EVP_PKEY_free;
-		cln->data = conf->private_key;
-	}
-
-	return NGX_CONF_OK;
-}
-	
-// copied from ngx_string with 2 changes:
-//	1. changed the charset: + => -, / => ~, = => _
-//	2. changed the interface to get a u_char* dest pointer and return the write end position
-
-static u_char*
-ngx_encode_base64_internal_cloudfront(u_char *d, ngx_str_t *src, const u_char *basis, ngx_uint_t padding)
-{
-    u_char         *s;
-    size_t          len;
-
-    len = src->len;
-    s = src->data;
-
-    while (len > 2) {
-        *d++ = basis[(s[0] >> 2) & 0x3f];
-        *d++ = basis[((s[0] & 3) << 4) | (s[1] >> 4)];
-        *d++ = basis[((s[1] & 0x0f) << 2) | (s[2] >> 6)];
-        *d++ = basis[s[2] & 0x3f];
-
-        s += 3;
-        len -= 3;
-    }
-
-    if (len) {
-        *d++ = basis[(s[0] >> 2) & 0x3f];
-
-        if (len == 1) {
-            *d++ = basis[(s[0] & 3) << 4];
-            if (padding) {
-                *d++ = '_';
-            }
-
-        } else {
-            *d++ = basis[((s[0] & 3) << 4) | (s[1] >> 4)];
-            *d++ = basis[(s[1] & 0x0f) << 2];
-        }
-
-        if (padding) {
-            *d++ = '_';
-        }
-    }
-
-    return d;
-}
-
+// copied from ngx_string, changed the charset: + => -, / => ~, = => _
 static u_char*
 ngx_encode_base64_cloudfront(u_char *d, ngx_str_t *src)
 {
-    static u_char basis64[] =
-            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-~";
+	static u_char basis64[] =
+		"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-~";
 
-    return ngx_encode_base64_internal_cloudfront(d, src, basis64, 1);
+	return ngx_http_secure_token_encode_base64_internal(d, src, basis64, '_');
 }
 
 static ngx_int_t
-ngx_http_secure_token_cloudfront_sign(ngx_http_request_t* r, EVP_PKEY *private_key, ngx_str_t* policy, ngx_str_t* signature)
+ngx_secure_token_cloudfront_get_var(
+	ngx_http_request_t *r,
+	ngx_http_variable_value_t *v,
+	uintptr_t data)
 {
-	EVP_MD_CTX md_ctx;
-	unsigned int siglen;
-
-	signature->data = ngx_pnalloc(r->pool, EVP_PKEY_size(private_key) + 1);
-	if (signature->data == NULL)
-	{
-		return NGX_ERROR;
-	}
-	
-	EVP_MD_CTX_init(&md_ctx);
-	
-	if (!EVP_SignInit_ex(&md_ctx, EVP_sha1(), NULL))
-	{
-		goto error;
-	}
-	
-	if (!EVP_SignUpdate(&md_ctx, policy->data, policy->len))
-	{
-		goto error;
-	}
-	
-	if (!EVP_SignFinal(&md_ctx, signature->data, &siglen, private_key))
-	{
-		goto error;
-	}
-
-	EVP_MD_CTX_cleanup(&md_ctx);
-	
-	signature->len = siglen;
-	return NGX_OK;
-	
-error:
-
-	EVP_MD_CTX_cleanup(&md_ctx);
-	return NGX_ERROR;
-}
-
-ngx_int_t
-ngx_http_secure_token_cloudfront_build(
-	ngx_http_request_t* r, 
-	ngx_http_secure_token_loc_conf_t *conf, 
-	ngx_str_t* result)
-{
+	ngx_secure_token_cloudfront_token_t* token = (void*)data;
 	ngx_str_t ip_address;
 	ngx_str_t signature;
 	ngx_str_t policy;
@@ -190,7 +85,8 @@ ngx_http_secure_token_cloudfront_build(
 	time_t end_time;
 	u_char* p;
 
-	rc = ngx_http_secure_token_get_acl(r, conf->cloudfront.acl, &acl);
+	// get the acl
+	rc = ngx_http_secure_token_get_acl(r, token->acl, &acl);
 	if (rc != NGX_OK)
 	{
 		return rc;
@@ -198,11 +94,11 @@ ngx_http_secure_token_cloudfront_build(
 
 	// get the size of the policy json
 	policy_size = sizeof(POLICY_HEADER) + sizeof(POLICY_FOOTER) + acl.len + NGX_INT32_LEN;
-	if (conf->ip_address != NULL)
+	if (token->ip_address != NULL)
 	{
 		if (ngx_http_complex_value(
 			r,
-			conf->ip_address,
+			token->ip_address,
 			&ip_address) != NGX_OK)
 		{
 			return NGX_ERROR;
@@ -217,46 +113,109 @@ ngx_http_secure_token_cloudfront_build(
 	{
 		return NGX_ERROR;
 	}
-	
-	end_time = (conf->end_time > 0) ? conf->end_time : (time_t)(ngx_time() + conf->window);
+
+	// get the end time
+	end_time = token->end.val;
+	if (token->end.type == NGX_HTTP_SECURE_TOKEN_TIME_RELATIVE)
+	{
+		end_time += ngx_time();
+	}
+
 	p = ngx_sprintf(policy.data, POLICY_HEADER, &acl, end_time);
-	if (conf->ip_address != NULL)
+	if (token->ip_address != NULL)
 	{
 		p = ngx_sprintf(p, POLICY_CONDITION_IPADDRESS, &ip_address);
 	}
 	p = ngx_copy(p, POLICY_FOOTER, sizeof(POLICY_FOOTER) - 1);
 
 	policy.len = p - policy.data;
-	
+
 	// sign the policy
-	rc = ngx_http_secure_token_cloudfront_sign(r, conf->cloudfront.private_key, &policy, &signature);
+	rc = ngx_http_secure_token_sign(r, token->private_key, &policy, &signature);
 	if (rc != NGX_OK)
 	{
 		return rc;
 	}
-	
+
 	// build the token
-	result->data = ngx_pnalloc(
-		r->pool, 
-		sizeof(POLICY_PARAM) - 1 + 
-		ngx_base64_encoded_length(policy.len) + 
-		sizeof(SIGNATURE_PARAM) - 1 + 
+	p = ngx_pnalloc(
+		r->pool,
+		sizeof(POLICY_PARAM) - 1 +
+		ngx_base64_encoded_length(policy.len) +
+		sizeof(SIGNATURE_PARAM) - 1 +
 		ngx_base64_encoded_length(signature.len) +
-		sizeof(KEY_PAIR_ID_PARAM) - 1 + 
-		conf->cloudfront.key_pair_id.len + 1);
-	if (result->data == NULL)
+		sizeof(KEY_PAIR_ID_PARAM) - 1 +
+		token->key_pair_id.len + 1);
+	if (p == NULL)
 	{
 		return NGX_ERROR;
 	}
-		
-	p = ngx_copy(result->data, POLICY_PARAM, sizeof(POLICY_PARAM) - 1);
+
+	v->data = p;
+
+	p = ngx_copy(p, POLICY_PARAM, sizeof(POLICY_PARAM) - 1);
 	p = ngx_encode_base64_cloudfront(p, &policy);
 	p = ngx_copy(p, SIGNATURE_PARAM, sizeof(SIGNATURE_PARAM) - 1);
 	p = ngx_encode_base64_cloudfront(p, &signature);
 	p = ngx_copy(p, KEY_PAIR_ID_PARAM, sizeof(KEY_PAIR_ID_PARAM) - 1);
-	p = ngx_copy(p, conf->cloudfront.key_pair_id.data, conf->cloudfront.key_pair_id.len);
+	p = ngx_copy(p, token->key_pair_id.data, token->key_pair_id.len);
 	*p = '\0';
-	
-	result->len = p - result->data;
+
+	v->len = p - v->data;
+	v->valid = 1;
+	v->no_cacheable = 0;
+	v->not_found = 0;
+
 	return NGX_OK;
+}
+
+char *
+ngx_secure_token_cloudfront_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+{
+	ngx_secure_token_cloudfront_token_t* token;
+	char* rv;
+
+	// init config
+	token = ngx_pcalloc(cf->pool, sizeof(*token));
+	if (token == NULL)
+	{
+		return NGX_CONF_ERROR;
+	}
+
+	token->end.type = NGX_HTTP_SECURE_TOKEN_TIME_UNSET;
+
+	// parse the block
+	rv = ngx_http_secure_token_conf_block(
+		cf,
+		ngx_http_secure_token_cloudfront_cmds,
+		token,
+		ngx_secure_token_cloudfront_get_var);
+	if (rv != NGX_CONF_OK)
+	{
+		return rv;
+	}
+
+	// validate required params
+	if (token->key_pair_id.data == NULL)
+	{
+		ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+			"\"key_pair_id\" is mandatory for cloudfront tokens");
+		return NGX_CONF_ERROR;
+	}
+
+	if (token->private_key == NULL)
+	{
+		ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+			"\"private_key\" is mandatory for cloudfront tokens");
+		return NGX_CONF_ERROR;
+	}
+
+	// populate unset optional params
+	if (token->end.type == NGX_HTTP_SECURE_TOKEN_TIME_UNSET)
+	{
+		token->end.type = NGX_HTTP_SECURE_TOKEN_TIME_RELATIVE;
+		token->end.val = 86400;
+	}
+
+	return NGX_CONF_OK;
 }
