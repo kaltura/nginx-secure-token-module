@@ -16,9 +16,6 @@
 #define CACHE_CONTROL_FORMAT "%V, max-age=%T, max-stale=0"
 
 static char *ngx_conf_check_str_len_bounds(ngx_conf_t *cf, void *post, void *data);
-static char *ngx_conf_set_hex_str_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
-static char *ngx_conf_set_time_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
-static char *ngx_http_secure_token_command(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 static void *ngx_http_secure_token_create_loc_conf(ngx_conf_t *cf);
 static char *ngx_http_secure_token_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child);
 static ngx_int_t ngx_http_secure_token_add_variables(ngx_conf_t *cf);
@@ -46,30 +43,9 @@ static ngx_conf_num_bounds_t  ngx_http_secure_token_encrypt_uri_hash_size_bounds
 static ngx_command_t  ngx_http_secure_token_commands[] = {
 	{ ngx_string("secure_token"),
 	NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-	ngx_http_secure_token_command,
-	NGX_HTTP_LOC_CONF_OFFSET,
-	offsetof(ngx_http_secure_token_loc_conf_t, build_token),
-	NULL },
-
-	{ ngx_string("secure_token_window"),
-	NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
-	ngx_conf_set_num_slot,
-	NGX_HTTP_LOC_CONF_OFFSET,
-	offsetof(ngx_http_secure_token_loc_conf_t, window),
-	NULL },
-
-	{ ngx_string("secure_token_end_time"),
-	NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-	ngx_conf_set_time_slot,
-	NGX_HTTP_LOC_CONF_OFFSET,
-	offsetof(ngx_http_secure_token_loc_conf_t, end_time),
-	NULL },
-
-	{ ngx_string("secure_token_ip_address"),
-	NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
 	ngx_http_set_complex_value_slot,
 	NGX_HTTP_LOC_CONF_OFFSET,
-	offsetof(ngx_http_secure_token_loc_conf_t, ip_address),
+	offsetof(ngx_http_secure_token_loc_conf_t, token),
 	NULL },
 
 	{ ngx_string("secure_token_avoid_cookies"),
@@ -182,14 +158,14 @@ static ngx_command_t  ngx_http_secure_token_commands[] = {
 
 	{ ngx_string("secure_token_encrypt_uri_key"),
 	NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
-	ngx_conf_set_hex_str_slot,
+	ngx_http_secure_token_conf_set_hex_str_slot,
 	NGX_HTTP_LOC_CONF_OFFSET,
 	offsetof(ngx_http_secure_token_loc_conf_t, encrypt_uri_key),
 	&ngx_http_secure_token_encrypt_uri_key_bounds },
 
 	{ ngx_string("secure_token_encrypt_uri_iv"),
 	NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
-	ngx_conf_set_hex_str_slot,
+	ngx_http_secure_token_conf_set_hex_str_slot,
 	NGX_HTTP_LOC_CONF_OFFSET,
 	offsetof(ngx_http_secure_token_loc_conf_t, encrypt_uri_iv),
 	&ngx_http_secure_token_encrypt_uri_iv_bounds },
@@ -242,92 +218,6 @@ ngx_module_t  ngx_http_secure_token_filter_module = {
 
 static ngx_http_output_header_filter_pt  ngx_http_next_header_filter;
 
-static char *
-ngx_http_secure_token_command(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
-{
-	ngx_http_secure_token_loc_conf_t *secure_token_conf = conf;
-	ngx_str_t *value;
-
-	value = cf->args->elts;
-
-	if (ngx_strcasecmp(value[1].data, (u_char *) "akamai") == 0) 
-	{
-		secure_token_conf->build_token = ngx_http_secure_token_akamai_build;
-	}
-	else if (ngx_strcasecmp(value[1].data, (u_char *) "cloudfront") == 0) 
-	{
-		secure_token_conf->build_token = ngx_http_secure_token_cloudfront_build;
-	}
-	else 
-	{
-		ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-			"invalid value \"%s\" in \"%s\" directive, "
-			"it must be \"akamai\" or \"cloudfront\"",
-			value[1].data, cmd->name.data);
-		return NGX_CONF_ERROR;
-	}
-
-	return NGX_CONF_OK;
-}
-
-static char *
-ngx_conf_set_hex_str_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
-{
-    ngx_str_t *field;
-	ngx_str_t *value;
-	ngx_int_t rc;
-
-    field = (ngx_str_t *) ((u_char*)conf + cmd->offset);
-
-    if (field->data) {
-        return "is duplicate";
-    }
-
-    value = cf->args->elts;
-
-	rc = ngx_http_secure_token_decode_hex(
-		cf->pool,
-		&value[1],
-		field);
-	if (rc != NGX_OK)
-	{
-		return "invalid hex string";
-	}
-
-    return NGX_CONF_OK;
-}
-
-static char *
-ngx_conf_set_time_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
-{
-	char  *p = conf;
-
-	time_t           *sp;
-	ngx_str_t        *value;
-	ngx_conf_post_t  *post;
-
-
-	sp = (time_t *)(p + cmd->offset);
-	if (*sp != NGX_CONF_UNSET) {
-		return "is duplicate";
-	}
-
-	value = cf->args->elts;
-
-	*sp = ngx_http_parse_time(value[1].data, value[1].len);
-	if (*sp == (time_t)NGX_ERROR) {
-		return "invalid value";
-	}
-
-	if (cmd->post) {
-		post = cmd->post;
-		return post->post_handler(cf, post, sp);
-	}
-
-	return NGX_CONF_OK;
-}
-
-
 
 // Note: copy of ngx_conf_check_num_bounds adjusted for string length validation
 static char *
@@ -368,9 +258,6 @@ ngx_http_secure_token_create_loc_conf(ngx_conf_t *cf)
 	if (conf == NULL) {
 		return NGX_CONF_ERROR;
 	}
-	conf->build_token = NGX_CONF_UNSET_PTR;
-	conf->window = NGX_CONF_UNSET_UINT;
-	conf->end_time = NGX_CONF_UNSET;
 	conf->avoid_cookies = NGX_CONF_UNSET;
 	conf->filename_prefixes = NGX_CONF_UNSET_PTR;
 	conf->expires_time = NGX_CONF_UNSET;
@@ -379,10 +266,7 @@ ngx_http_secure_token_create_loc_conf(ngx_conf_t *cf)
 	conf->processor_conf.tokenize_segments = NGX_CONF_UNSET;
 	conf->processor_conf.encrypt_uri = NGX_CONF_UNSET;
 	conf->encrypt_uri_hash_size = NGX_CONF_UNSET_SIZE;
-	
-	ngx_http_secure_token_akamai_create_conf(cf, &conf->akamai);
-	ngx_http_secure_token_cloudfront_create_conf(cf, &conf->cloudfront);
-	
+		
 	return conf;
 }
 
@@ -421,13 +305,9 @@ ngx_http_secure_token_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
 	ngx_http_secure_token_loc_conf_t  *conf = child;
 	char* err;
 
-	ngx_conf_merge_ptr_value(conf->build_token, prev->build_token, NULL);
-	
-	ngx_conf_merge_uint_value(conf->window, prev->window, 86400);
-	ngx_conf_merge_value(conf->end_time, prev->end_time, NGX_CONF_UNSET);
-	if (conf->ip_address == NULL)
+	if (conf->token == NULL)
 	{
-		conf->ip_address = prev->ip_address;
+		conf->token = prev->token;
 	}
 	ngx_conf_merge_value(conf->avoid_cookies, prev->avoid_cookies, 1);
 	
@@ -471,19 +351,7 @@ ngx_http_secure_token_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
 	{
 		return err;
 	}
-	
-	err = ngx_http_secure_token_akamai_merge_conf(cf, conf, &conf->akamai, &prev->akamai);
-	if (err != NGX_CONF_OK)
-	{
-		return err;
-	}
-
-	err = ngx_http_secure_token_cloudfront_merge_conf(cf, conf, &conf->cloudfront, &prev->cloudfront);
-	if (err != NGX_CONF_OK)
-	{
-		return err;
-	}
-	
+		
 	ngx_conf_merge_value(conf->processor_conf.encrypt_uri, prev->processor_conf.encrypt_uri, 0);
 	ngx_conf_merge_str_value(conf->encrypt_uri_key, prev->encrypt_uri_key, "");
 	ngx_conf_merge_str_value(conf->encrypt_uri_iv, prev->encrypt_uri_iv, "");
@@ -716,7 +584,7 @@ ngx_http_secure_token_header_filter(ngx_http_request_t *r)
 	conf = ngx_http_get_module_loc_conf(r, ngx_http_secure_token_filter_module);
 
 	// decide whether the token should be added
-	if ((conf->build_token == NULL && !conf->processor_conf.encrypt_uri) ||
+	if ((conf->token == NULL && !conf->processor_conf.encrypt_uri) ||
 		r->headers_out.status != NGX_HTTP_OK ||
 		r != r->main)
 	{
@@ -772,12 +640,14 @@ ngx_http_secure_token_header_filter(ngx_http_request_t *r)
 	token.len = 0;
 	token.data = NULL;
 
-	if (conf->build_token != NULL)
+	if (conf->token != NULL)
 	{
-		rc = conf->build_token(r, conf, &token);
-		if (rc != NGX_OK)
+		if (ngx_http_complex_value(
+			r,
+			conf->token,
+			&token) != NGX_OK)
 		{
-			return rc;
+			return NGX_ERROR;
 		}
 	}
 

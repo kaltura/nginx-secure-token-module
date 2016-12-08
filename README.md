@@ -17,34 +17,13 @@ Requires OpenSSL.
 ### Generic token parameters
 
 #### secure_token
-* **syntax**: `secure_token type`
+* **syntax**: `secure_token value`
 * **default**: `none`
 * **context**: `http`, `server`, `location`
 
-Enables token generation of the requested type, supported types are: akamai, cloudfront
-
-#### secure_token_window
-* **syntax**: `secure_token_window window`
-* **default**: `86400`
-* **context**: `http`, `server`, `location`
-
-Sets the validity time of the token in seconds
-
-#### secure_token_end_time
-* **syntax**: `secure_token_end_time time`
-* **default**: `none`
-* **context**: `http`, `server`, `location`
-
-Sets the end time of the token, the time has to be specified in HTTP time format (e.g. Thu, 01 Jan 1970 00:00:00 GMT).
-When this parameter is set, it takes precedence over secure_token_window.
-
-#### secure_token_ip_address
-* **syntax**: `secure_token_ip_address address`
-* **default**: `none`
-* **context**: `http`, `server`, `location`
-
-Sets the IP address that should be embedded in the token.
-The parameter value can contain variables, e.g. with CloudFront $remote_addr/32 can be used to limit the token to the specific IP of the client.
+Sets the value of the token that should be embedded in the manifest/returned as a cookie.
+The parameter value can contain variables, and often points to variables set by this module
+(using `secure_token_akamai` / `secure_token_cloudfront` blocks)
 
 #### secure_token_avoid_cookies
 * **syntax**: `secure_token_avoid_cookies on/off`
@@ -52,10 +31,10 @@ The parameter value can contain variables, e.g. with CloudFront $remote_addr/32 
 * **context**: `http`, `server`, `location`
 
 When enabled the module prefers to use a query string token instead of a cookie token.
-A query string token is currently supported only for the following mime types:
+A query string token is currently supported only for the following mime types (other mime types return a cookie token):
 * application/vnd.apple.mpegurl
 * application/dash+xml
-Other mime types will return a cookie token.
+* video/f4m
 
 #### secure_token_types
 * **syntax**: `secure_token_types mime_type ...`
@@ -149,52 +128,93 @@ Sets the content type that should be parsed as f4m for token insertion
 
 ### Akamai token parameters
 
-#### secure_token_akamai_key
-* **syntax**: `secure_token_akamai_key key_hex`
-* **default**: `empty`
-* **context**: `http`, `server`, `location`
+#### secure_token_akamai
+* **syntax**: `secure_token_akamai $variable { ... }`
+* **context**: `http`
+
+Creates a new variable whose value is an Akamai token, created according to the 
+parameters specified within the block.
+
+The block supports the following parameters:
+
+#### key
+* **syntax**: `key key_hex`
+* **default**: `N/A (mandatory)`
 
 Sets the secret key.
-The parameter value can contain variables.
 
-#### secure_token_akamai_param_name
-* **syntax**: `secure_token_akamai_param_name name`
+#### param_name
+* **syntax**: `param_name name`
 * **default**: `__hdnea__`
-* **context**: `http`, `server`, `location`
 
 Sets the token parameter name (either the name of the cookie or the query string parameter)
 
-#### secure_token_akamai_acl
-* **syntax**: `secure_token_akamai_acl acl`
+#### acl
+* **syntax**: `acl acl`
 * **default**: `$baseuri`
-* **context**: `http`, `server`, `location`
 
-Sets the signed part of the URL (ACL).
-The parameter value can contain variables.
+Sets the signed part of the URL (ACL). The parameter value can contain variables.
+
+#### start
+* **syntax**: `start time`
+* **default**: `0`
+
+Sets the start time of the token (see `Time format` below)
+
+#### end
+* **syntax**: `end time`
+* **default**: `86400`
+
+Sets the end time of the token (see `Time format` below)
+
+#### ip_address
+* **syntax**: `ip_address address`
+* **default**: `none`
+
+Sets the IP address that should be embedded in the token.
+The parameter value can contain variables, e.g. $remote_addr.
 
 ### CloudFront token parameters
 
-#### secure_token_cloudfront_private_key_file
-* **syntax**: `secure_token_cloudfront_private_key_file filename`
-* **default**: `none`
-* **context**: `http`, `server`, `location`
+#### secure_token_cloudfront
+* **syntax**: `secure_token_cloudfront $variable { ... }`
+* **context**: `http`
+
+Creates a new variable whose value is a CloudFront token, created according to the 
+parameters specified within the block.
+
+The block supports the following parameters:
+
+#### private_key_file
+* **syntax**: `private_key_file filename`
+* **default**: `N/A (mandatory)`
 
 Sets the file name of the private key (PEM file)
 
-#### secure_token_cloudfront_key_pair_id
-* **syntax**: `secure_token_cloudfront_key_pair_id id`
-* **default**: `none`
-* **context**: `http`, `server`, `location`
+#### key_pair_id
+* **syntax**: `key_pair_id id`
+* **default**: `N/A (mandatory)`
 
 Sets the key pair id
 
-#### secure_token_cloudfront_acl
-* **syntax**: `secure_token_cloudfront_acl acl`
+#### acl
+* **syntax**: `acl acl`
 * **default**: `$baseuri`
-* **context**: `http`, `server`, `location`
 
-Sets the signed part of the URL (ACL).
-The parameter value can contain variables.
+Sets the signed part of the URL (ACL). The parameter value can contain variables.
+
+#### end
+* **syntax**: `end time`
+* **default**: `86400`
+
+Sets the end time of the token (see `Time format` below)
+
+#### ip_address
+* **syntax**: `ip_address address`
+* **default**: `none`
+
+Sets the IP address that should be embedded in the token.
+The parameter value can contain variables, e.g. $remote_addr/32 can be used to limit the token to the specific IP of the client.
 
 ### URI encryption parameters
 
@@ -251,51 +271,76 @@ Example 2:
 
 The size in bytes of hash used to validate the uri after decryption, the value has to be between 0 and 16.
 
+### Time format
+
+Some of the configuration parameters mentioned above, support both absolute timestamps,
+and timestamps relative to `now`.
+These parameters can be set in the configuration using one of the following formats:
+* `epoch` - unix timestamp 0 (01/01/1970)
+* `max` - unix timestamp 2147483647 (18/01/2038)
+* `@1481230000` - unix timestamp 1481230000 (8/12/2016)
+* `10d` / `+10d` - `now` + 10 days
+* `-5m` - `now` - 5 minutes
+
 ## Sample configurations
 
 ### HLS packaging with Akamai tokens
 ```
-	location ~ ^/hls/p/\d+/(sp/\d+/)?serveFlavor/ {
-		vod hls;
+	secure_token_akamai $token {
+		key 1234;
+		acl "$baseuri*";
+	}
 
-		g2o        on;
+	server {
+	
+		location ~ ^/hls/p/\d+/(sp/\d+/)?serveFlavor/ {
+			vod hls;
 
-		secure_token akamai;
-		secure_token_akamai_key 1234;
-		secure_token_akamai_acl "$baseuri*";
-		secure_token_types application/vnd.apple.mpegurl;
+			g2o        on;
+
+			secure_token $token;
+			secure_token_types application/vnd.apple.mpegurl;
+			
+			secure_token_expires_time 100d;
+			secure_token_query_token_expires_time 1h;
+
+			more_set_headers 'Access-Control-Allow-Headers: *';
+			more_set_headers 'Access-Control-Expose-Headers: Server,range,Content-Length,Content-Range';
+			more_set_headers 'Access-Control-Allow-Methods: GET, HEAD, OPTIONS';
+			more_set_headers 'Access-Control-Allow-Origin: *';
+		}
 		
-		secure_token_expires_time 100d;
-		secure_token_query_token_expires_time 1h;
-
-		more_set_headers 'Access-Control-Allow-Headers: *';
-		more_set_headers 'Access-Control-Expose-Headers: Server,range,Content-Length,Content-Range';
-		more_set_headers 'Access-Control-Allow-Methods: GET, HEAD, OPTIONS';
-		more_set_headers 'Access-Control-Allow-Origin: *';
 	}
 ```
 
 ### HDS packaging with CloudFront tokens
 ```
-	location ~ ^/hds/p/\d+/(sp/\d+/)?serveFlavor/ {
-		vod hds;
-		vod_segment_duration 6000;
-		vod_align_segments_to_key_frames on;
-		vod_segment_count_policy last_rounded;
+	secure_token_cloudfront $token {
+		private_key_file /path/to/pem;
+		key_pair_id ABCDEF;
+		acl "$scheme://$http_host$baseuri*";
+	}
 
-		secure_token cloudfront;
-		secure_token_cloudfront_private_key_file /path/to/pem;
-		secure_token_cloudfront_key_pair_id ABCDEF;
-		secure_token_cloudfront_acl "$scheme://$http_host$baseuri*";
-		secure_token_types video/f4m;
+	server {
+	
+		location ~ ^/hds/p/\d+/(sp/\d+/)?serveFlavor/ {
+			vod hds;
+			vod_segment_duration 6000;
+			vod_align_segments_to_key_frames on;
+			vod_segment_count_policy last_rounded;
+
+			secure_token $token;
+			secure_token_types video/f4m;
+			
+			secure_token_expires_time 100d;
+			secure_token_query_token_expires_time 1h;
+
+			more_set_headers 'Access-Control-Allow-Headers: *';
+			more_set_headers 'Access-Control-Expose-Headers: Server,range,Content-Length,Content-Range';
+			more_set_headers 'Access-Control-Allow-Methods: GET, HEAD, OPTIONS';
+			more_set_headers 'Access-Control-Allow-Origin: *';
+		}
 		
-		secure_token_expires_time 100d;
-		secure_token_query_token_expires_time 1h;
-
-		more_set_headers 'Access-Control-Allow-Headers: *';
-		more_set_headers 'Access-Control-Expose-Headers: Server,range,Content-Length,Content-Range';
-		more_set_headers 'Access-Control-Allow-Methods: GET, HEAD, OPTIONS';
-		more_set_headers 'Access-Control-Allow-Origin: *';
 	}
 ```
 
@@ -304,25 +349,32 @@ The size in bytes of hash used to validate the uri after decryption, the value h
 This configuration enables token security while having static URLs for the video segments,
 this enables the caching of the segments transparently by proxies.
 ```
-	location ~ ^/s/hls/enc/p/\d+/(sp/\d+/)?serveFlavor/ {
-		vod hls;
-		vod_secret_key "password$vod_filepath";
+	secure_token_akamai $token {
+		key 1234;
+		acl "$baseuri*";
+	}
 
-		secure_token akamai;
-		secure_token_akamai_key 1234;
-		secure_token_akamai_acl "$baseuri*";
-		secure_token_types application/vnd.apple.mpegurl;
-		
-		secure_token_expires_time 100d;
-		secure_token_query_token_expires_time 1h;
-		
-		secure_token_uri_filename_prefix index;
-		secure_token_tokenize_segments off;
+	server {
+	
+		location ~ ^/s/hls/enc/p/\d+/(sp/\d+/)?serveFlavor/ {
+			vod hls;
+			vod_secret_key "password$vod_filepath";
 
-		akamai_token_validate on;
-		akamai_token_validate_key 1234;
-		akamai_token_validate_uri_filename_prefix encryption;
-		akamai_token_validate_uri_filename_prefix index;
+			secure_token $token;
+			secure_token_types application/vnd.apple.mpegurl;
+			
+			secure_token_expires_time 100d;
+			secure_token_query_token_expires_time 1h;
+			
+			secure_token_uri_filename_prefix index;
+			secure_token_tokenize_segments off;
+
+			akamai_token_validate on;
+			akamai_token_validate_key 1234;
+			akamai_token_validate_uri_filename_prefix encryption;
+			akamai_token_validate_uri_filename_prefix index;
+		}
+		
 	}
 ```
 Note: this configuration requires the module https://github.com/kaltura/nginx-akamai-token-validate-module
@@ -330,21 +382,28 @@ in addition to nginx-secure-token-module
 
 ### Adding token security on top of an existing HDS/HLS live stream
 ```
-	location /secure-live/ {
-		proxy_pass http://original.live.domain;
+	secure_token_akamai $token {
+		key 1234;
+		acl "$baseuri*";
+	}
 
-		secure_token akamai;
-		secure_token_akamai_key 1234;
-		secure_token_akamai_acl "$baseuri*";
-		secure_token_types text/xml application/vnd.apple.mpegurl;		
-		secure_token_content_type_f4m text/xml;
-		
-		secure_token_expires_time 100d;
-		secure_token_query_token_expires_time 1h;
+	server {
+	
+		location /secure-live/ {
+			proxy_pass http://original.live.domain;
 
-		akamai_token_validate on;
-		akamai_token_validate_key 1234;
-		akamai_token_validate_strip_token on;
+			secure_token $token;
+			secure_token_types text/xml application/vnd.apple.mpegurl;		
+			secure_token_content_type_f4m text/xml;
+			
+			secure_token_expires_time 100d;
+			secure_token_query_token_expires_time 1h;
+
+			akamai_token_validate on;
+			akamai_token_validate_key 1234;
+			akamai_token_validate_strip_token on;
+		}
+	
 	}
 ```
 Note: this configuration requires the module https://github.com/kaltura/nginx-akamai-token-validate-module
@@ -366,6 +425,13 @@ in addition to nginx-secure-token-module
 		expires 100d;
 	}
 ```
+
+## Nginx variables
+
+The module adds the following nginx variables:
+* `$baseuri` - contains the value of the `$uri` built in variable truncated up to the last slash (/). 
+	If this value contains a comma (,) the value is truncated up to the comma position.
+	For exmaple, if `$uri` is /a/b/c.htm then `$baseuri` will be /a/b/; if `$uri` is /a/b,c/d.htm then `$baseuri` will be /a/b.
 
 ## Copyright & License
 

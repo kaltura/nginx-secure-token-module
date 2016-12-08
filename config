@@ -5,10 +5,8 @@ HTTP_AUX_FILTER_MODULES="$HTTP_AUX_FILTER_MODULES ngx_http_secure_token_filter_m
 NGX_ADDON_DEPS="$NGX_ADDON_DEPS                                              \
 				$ngx_addon_dir/ngx_http_secure_token_akamai.h                \
 				$ngx_addon_dir/ngx_http_secure_token_akamai_commands.h       \
-				$ngx_addon_dir/ngx_http_secure_token_akamai_conf.h           \
 				$ngx_addon_dir/ngx_http_secure_token_cloudfront.h            \
 				$ngx_addon_dir/ngx_http_secure_token_cloudfront_commands.h   \
-				$ngx_addon_dir/ngx_http_secure_token_cloudfront_conf.h       \
 				$ngx_addon_dir/ngx_http_secure_token_conf.h                  \
 				$ngx_addon_dir/ngx_http_secure_token_encrypt_uri.h           \
 				$ngx_addon_dir/ngx_http_secure_token_filter_module.h         \
