@@ -31,10 +31,10 @@ The parameter value can contain variables, and often points to variables set by 
 * **context**: `http`, `server`, `location`
 
 When enabled the module prefers to use a query string token instead of a cookie token.
-A query string token is currently supported only for the following mime types:
+A query string token is currently supported only for the following mime types (other mime types return a cookie token):
 * application/vnd.apple.mpegurl
 * application/dash+xml
-Other mime types will return a cookie token.
+* video/f4m
 
 #### secure_token_types
 * **syntax**: `secure_token_types mime_type ...`
@@ -134,39 +134,40 @@ Sets the content type that should be parsed as f4m for token insertion
 
 Creates a new variable whose value is an Akamai token, created according to the 
 parameters specified within the block.
+
 The block supports the following parameters:
 
-##### key
+#### key
 * **syntax**: `key key_hex`
 * **default**: `N/A (mandatory)`
 
 Sets the secret key.
 
-##### param_name
+#### param_name
 * **syntax**: `param_name name`
 * **default**: `__hdnea__`
 
 Sets the token parameter name (either the name of the cookie or the query string parameter)
 
-##### acl
+#### acl
 * **syntax**: `acl acl`
 * **default**: `$baseuri`
 
 Sets the signed part of the URL (ACL). The parameter value can contain variables.
 
-##### start
+#### start
 * **syntax**: `start time`
 * **default**: `0`
 
 Sets the start time of the token (see `Time format` below)
 
-##### end
+#### end
 * **syntax**: `end time`
 * **default**: `86400`
 
 Sets the end time of the token (see `Time format` below)
 
-##### ip_address
+#### ip_address
 * **syntax**: `ip_address address`
 * **default**: `none`
 
@@ -181,33 +182,34 @@ The parameter value can contain variables, e.g. $remote_addr.
 
 Creates a new variable whose value is a CloudFront token, created according to the 
 parameters specified within the block.
+
 The block supports the following parameters:
 
-##### private_key_file
+#### private_key_file
 * **syntax**: `private_key_file filename`
 * **default**: `N/A (mandatory)`
 
 Sets the file name of the private key (PEM file)
 
-##### key_pair_id
+#### key_pair_id
 * **syntax**: `key_pair_id id`
 * **default**: `N/A (mandatory)`
 
 Sets the key pair id
 
-##### acl
+#### acl
 * **syntax**: `acl acl`
 * **default**: `$baseuri`
 
 Sets the signed part of the URL (ACL). The parameter value can contain variables.
 
-##### end
+#### end
 * **syntax**: `end time`
 * **default**: `86400`
 
 Sets the end time of the token (see `Time format` below)
 
-##### ip_address
+#### ip_address
 * **syntax**: `ip_address address`
 * **default**: `none`
 
@@ -427,9 +429,9 @@ in addition to nginx-secure-token-module
 ## Nginx variables
 
 The module adds the following nginx variables:
-* `$baseuri` - contains the value of the `$uri` built in variable truncated up to the last /. 
+* `$baseuri` - contains the value of the `$uri` built in variable truncated up to the last slash (/). 
 	If this value contains a comma (,) the value is truncated up to the comma position.
-	For exmaple, if `$uri` is /a/b/c.htm `$baseuri` will be /a/b/, however if `$uri` is /a/b,c/d.htm `$baseuri` will be /a/b.
+	For exmaple, if `$uri` is /a/b/c.htm then `$baseuri` will be /a/b/; if `$uri` is /a/b,c/d.htm then `$baseuri` will be /a/b.
 
 ## Copyright & License
 
