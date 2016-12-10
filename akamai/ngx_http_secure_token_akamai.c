@@ -1,6 +1,6 @@
 #include "ngx_http_secure_token_akamai.h"
-#include "ngx_http_secure_token_filter_module.h"
-#include "ngx_http_secure_token_utils.h"
+#include "../ngx_http_secure_token_filter_module.h"
+#include "../ngx_http_secure_token_utils.h"
 
 #include <openssl/hmac.h>
 #include <openssl/evp.h>

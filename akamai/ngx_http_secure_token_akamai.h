@@ -1,7 +1,7 @@
 #ifndef _NGX_HTTP_SECURE_TOKEN_AKAMAI_H_INCLUDED_
 #define _NGX_HTTP_SECURE_TOKEN_AKAMAI_H_INCLUDED_
 
-#include "ngx_http_secure_token_conf.h"
+#include "../ngx_http_secure_token_conf.h"
 
 // functions
 char* ngx_secure_token_akamai_block(

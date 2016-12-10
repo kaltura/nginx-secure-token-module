@@ -6,8 +6,9 @@
 #include "ngx_http_secure_token_processor_base.h"
 #include "ngx_http_secure_token_filter_module.h"
 #include "ngx_http_secure_token_encrypt_uri.h"
-#include "ngx_http_secure_token_cloudfront.h"
-#include "ngx_http_secure_token_akamai.h"
+#include "cloudfront/ngx_http_secure_token_cloudfront.h"
+#include "akamai/ngx_http_secure_token_akamai.h"
+#include "cht/ngx_http_secure_token_cht.h"
 #include "ngx_http_secure_token_utils.h"
 #include "ngx_http_secure_token_conf.h"
 #include "ngx_http_secure_token_m3u8.h"
@@ -20,13 +21,14 @@ static void *ngx_http_secure_token_create_loc_conf(ngx_conf_t *cf);
 static char *ngx_http_secure_token_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child);
 static ngx_int_t ngx_http_secure_token_add_variables(ngx_conf_t *cf);
 static ngx_int_t ngx_http_secure_token_filter_init(ngx_conf_t *cf);
-static ngx_int_t ngx_http_secure_token_set_baseuri(ngx_http_request_t *r, ngx_http_variable_value_t *v, uintptr_t data);
+static ngx_int_t ngx_http_secure_token_set_baseuri_comma(ngx_http_request_t *r, ngx_http_variable_value_t *v, uintptr_t data);
 
 static ngx_str_t  ngx_http_secure_token_default_types[] = {
 	ngx_null_string
 };
 
-static ngx_str_t  ngx_http_baseuri = ngx_string("baseuri");
+static ngx_str_t  ngx_http_baseuri = ngx_string("secure_token_baseuri");
+static ngx_str_t  ngx_http_baseuri_comma = ngx_string("secure_token_baseuri_comma");
 
 static ngx_conf_num_bounds_t  ngx_http_secure_token_encrypt_uri_key_bounds = {
 	ngx_conf_check_str_len_bounds, 32, 32
@@ -146,8 +148,9 @@ static ngx_command_t  ngx_http_secure_token_commands[] = {
 	offsetof(ngx_http_secure_token_loc_conf_t, content_type_f4m),
 	NULL },
 
-#include "ngx_http_secure_token_akamai_commands.h"
-#include "ngx_http_secure_token_cloudfront_commands.h"
+#include "akamai/ngx_http_secure_token_akamai_commands.h"
+#include "cloudfront/ngx_http_secure_token_cloudfront_commands.h"
+#include "cht/ngx_http_secure_token_cht_commands.h"
 
 	{ ngx_string("secure_token_encrypt_uri"),
 	NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_FLAG,
@@ -541,8 +544,8 @@ ngx_http_secure_token_get_acl(ngx_http_request_t *r, ngx_http_complex_value_t *a
 	}
 	else
 	{
-		// the default is 'baseuri'
-		if (ngx_http_secure_token_set_baseuri(r, &var_value, 0) != NGX_OK)
+		// the default is 'baseuri_comma'
+		if (ngx_http_secure_token_set_baseuri_comma(r, &var_value, 0) != NGX_OK)
 		{
 			return NGX_ERROR;
 		}
@@ -739,6 +742,27 @@ static ngx_int_t
 ngx_http_secure_token_set_baseuri(ngx_http_request_t *r, ngx_http_variable_value_t *v, uintptr_t data)
 {
 	u_char* last_slash_pos;
+
+	last_slash_pos = ngx_http_secure_token_memrchr(r->uri.data, '/', r->uri.len);
+	if (last_slash_pos == NULL)
+	{
+		return NGX_ERROR;
+	}
+
+	v->valid = 1;
+	v->no_cacheable = 0;
+	v->not_found = 0;
+
+	v->len = last_slash_pos + 1 - r->uri.data;
+	v->data = r->uri.data;
+
+	return NGX_OK;
+}
+
+static ngx_int_t
+ngx_http_secure_token_set_baseuri_comma(ngx_http_request_t *r, ngx_http_variable_value_t *v, uintptr_t data)
+{
+	u_char* last_slash_pos;
 	u_char* acl_end_pos;
 	u_char* comma_pos;
 
@@ -777,6 +801,13 @@ ngx_http_secure_token_add_variables(ngx_conf_t *cf)
 	}
 
 	var->get_handler = ngx_http_secure_token_set_baseuri;
+
+	var = ngx_http_add_variable(cf, &ngx_http_baseuri_comma, NGX_HTTP_VAR_CHANGEABLE);
+	if (var == NULL) {
+		return NGX_ERROR;
+	}
+
+	var->get_handler = ngx_http_secure_token_set_baseuri_comma;
 
 	return NGX_OK;
 }

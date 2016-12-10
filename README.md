@@ -151,7 +151,7 @@ Sets the token parameter name (either the name of the cookie or the query string
 
 #### acl
 * **syntax**: `acl acl`
-* **default**: `$baseuri`
+* **default**: `$secure_token_baseuri_comma`
 
 Sets the signed part of the URL (ACL). The parameter value can contain variables.
 
@@ -199,7 +199,7 @@ Sets the key pair id
 
 #### acl
 * **syntax**: `acl acl`
-* **default**: `$baseuri`
+* **default**: `$secure_token_baseuri_comma`
 
 Sets the signed part of the URL (ACL). The parameter value can contain variables.
 
@@ -288,7 +288,7 @@ These parameters can be set in the configuration using one of the following form
 ```
 	secure_token_akamai $token {
 		key 1234;
-		acl "$baseuri*";
+		acl "$secure_token_baseuri_comma*";
 	}
 
 	server {
@@ -318,7 +318,7 @@ These parameters can be set in the configuration using one of the following form
 	secure_token_cloudfront $token {
 		private_key_file /path/to/pem;
 		key_pair_id ABCDEF;
-		acl "$scheme://$http_host$baseuri*";
+		acl "$scheme://$http_host$secure_token_baseuri_comma*";
 	}
 
 	server {
@@ -351,7 +351,7 @@ this enables the caching of the segments transparently by proxies.
 ```
 	secure_token_akamai $token {
 		key 1234;
-		acl "$baseuri*";
+		acl "$secure_token_baseuri_comma*";
 	}
 
 	server {
@@ -384,7 +384,7 @@ in addition to nginx-secure-token-module
 ```
 	secure_token_akamai $token {
 		key 1234;
-		acl "$baseuri*";
+		acl "$secure_token_baseuri_comma*";
 	}
 
 	server {
@@ -429,9 +429,12 @@ in addition to nginx-secure-token-module
 ## Nginx variables
 
 The module adds the following nginx variables:
-* `$baseuri` - contains the value of the `$uri` built in variable truncated up to the last slash (/). 
-	If this value contains a comma (,) the value is truncated up to the comma position.
-	For exmaple, if `$uri` is /a/b/c.htm then `$baseuri` will be /a/b/; if `$uri` is /a/b,c/d.htm then `$baseuri` will be /a/b.
+* `$secure_token_baseuri` - contains the value of the `$uri` built in variable truncated up to the last slash (/). 
+	For exmaple, if `$uri` is /a/b/c.htm then `$secure_token_baseuri` will be /a/b/.
+* `$secure_token_baseuri_comma` - same as `$secure_token_baseuri`, except that if this value contains a comma (,) 
+	the value is truncated up to the comma position.
+	For exmaple, if `$uri` is /a/b/c.htm then `$secure_token_baseuri_comma` will be /a/b/; 
+	if `$uri` is /a/b,c/d.htm then `$secure_token_baseuri_comma` will be /a/b.
 
 ## Copyright & License
 

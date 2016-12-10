@@ -2,27 +2,30 @@ ngx_addon_name=ngx_http_secure_token_filter_module
 
 HTTP_AUX_FILTER_MODULES="$HTTP_AUX_FILTER_MODULES ngx_http_secure_token_filter_module"
 
-NGX_ADDON_DEPS="$NGX_ADDON_DEPS                                              \
-				$ngx_addon_dir/ngx_http_secure_token_akamai.h                \
-				$ngx_addon_dir/ngx_http_secure_token_akamai_commands.h       \
-				$ngx_addon_dir/ngx_http_secure_token_cloudfront.h            \
-				$ngx_addon_dir/ngx_http_secure_token_cloudfront_commands.h   \
-				$ngx_addon_dir/ngx_http_secure_token_conf.h                  \
-				$ngx_addon_dir/ngx_http_secure_token_encrypt_uri.h           \
-				$ngx_addon_dir/ngx_http_secure_token_filter_module.h         \
-				$ngx_addon_dir/ngx_http_secure_token_m3u8.h                  \
-				$ngx_addon_dir/ngx_http_secure_token_processor_base.h        \
-				$ngx_addon_dir/ngx_http_secure_token_utils.h                 \
-				$ngx_addon_dir/ngx_http_secure_token_xml.h                   \
+NGX_ADDON_DEPS="$NGX_ADDON_DEPS                                                       \
+				$ngx_addon_dir/akamai/ngx_http_secure_token_akamai.h                  \
+				$ngx_addon_dir/akamai/ngx_http_secure_token_akamai_commands.h         \
+				$ngx_addon_dir/cloudfront/ngx_http_secure_token_cloudfront.h          \
+				$ngx_addon_dir/cloudfront/ngx_http_secure_token_cloudfront_commands.h \
+				$ngx_addon_dir/cht/ngx_http_secure_token_cht.h                        \
+				$ngx_addon_dir/cht/ngx_http_secure_token_cht_commands.h               \
+				$ngx_addon_dir/ngx_http_secure_token_conf.h                           \
+				$ngx_addon_dir/ngx_http_secure_token_encrypt_uri.h                    \
+				$ngx_addon_dir/ngx_http_secure_token_filter_module.h                  \
+				$ngx_addon_dir/ngx_http_secure_token_m3u8.h                           \
+				$ngx_addon_dir/ngx_http_secure_token_processor_base.h                 \
+				$ngx_addon_dir/ngx_http_secure_token_utils.h                          \
+				$ngx_addon_dir/ngx_http_secure_token_xml.h                            \
 				"
 
-NGX_ADDON_SRCS="$NGX_ADDON_SRCS                                              \
-				$ngx_addon_dir/ngx_http_secure_token_akamai.c                \
-				$ngx_addon_dir/ngx_http_secure_token_cloudfront.c            \
-				$ngx_addon_dir/ngx_http_secure_token_encrypt_uri.c           \
-				$ngx_addon_dir/ngx_http_secure_token_filter_module.c         \
-				$ngx_addon_dir/ngx_http_secure_token_m3u8.c                  \
-				$ngx_addon_dir/ngx_http_secure_token_processor_base.c        \
-				$ngx_addon_dir/ngx_http_secure_token_utils.c                 \
-				$ngx_addon_dir/ngx_http_secure_token_xml.c                   \
+NGX_ADDON_SRCS="$NGX_ADDON_SRCS                                                       \
+				$ngx_addon_dir/akamai/ngx_http_secure_token_akamai.c                  \
+				$ngx_addon_dir/cloudfront/ngx_http_secure_token_cloudfront.c          \
+				$ngx_addon_dir/cht/ngx_http_secure_token_cht.c                        \
+				$ngx_addon_dir/ngx_http_secure_token_encrypt_uri.c                    \
+				$ngx_addon_dir/ngx_http_secure_token_filter_module.c                  \
+				$ngx_addon_dir/ngx_http_secure_token_m3u8.c                           \
+				$ngx_addon_dir/ngx_http_secure_token_processor_base.c                 \
+				$ngx_addon_dir/ngx_http_secure_token_utils.c                          \
+				$ngx_addon_dir/ngx_http_secure_token_xml.c                            \
 				"
