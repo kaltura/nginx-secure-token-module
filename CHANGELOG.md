@@ -17,3 +17,7 @@ The following configuration settings were removed:
 * secure_token_cloudfront_private_key_file - use the private_key_file param inside a secure_token_cloudfront block
 * secure_token_cloudfront_key_pair_id - use the key_pair_id param inside a secure_token_cloudfront block
 * secure_token_cloudfront_acl - use the acl param inside a secure_token_cloudfront block
+
+## 2016/12/10 - rename $baseuri variable
+
+Added $secure_token_baseuri, renamed $baseuri to $secure_token_baseuri_comma
