@@ -6,6 +6,15 @@
 #include <ngx_http.h>
 #include <openssl/evp.h>
 
+// constants
+#ifndef MD5_DIGEST_LENGTH
+#define MD5_DIGEST_LENGTH (16)
+#endif // MD5_DIGEST_LENGTH
+
+#ifndef AES_BLOCK_SIZE
+#define AES_BLOCK_SIZE (16)
+#endif // AES_BLOCK_SIZE
+
 // typedefs
 typedef enum {
 	NGX_HTTP_SECURE_TOKEN_TIME_UNSET,

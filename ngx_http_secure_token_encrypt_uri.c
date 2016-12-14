@@ -1,16 +1,9 @@
 #include "ngx_http_secure_token_filter_module.h"
 #include "ngx_http_secure_token_encrypt_uri.h"
 #include "ngx_http_secure_token_conf.h"
+#include "ngx_http_secure_token_utils.h"
 #include <openssl/evp.h>
 #include <ngx_md5.h>
-
-#ifndef MD5_DIGEST_LENGTH
-#define MD5_DIGEST_LENGTH (16)
-#endif // MD5_DIGEST_LENGTH
-
-#ifndef AES_BLOCK_SIZE
-#define AES_BLOCK_SIZE (16)
-#endif // AES_BLOCK_SIZE
 
 // Note: a modified version of ngx_strstrn that gets ngx_str_t's
 static u_char *
