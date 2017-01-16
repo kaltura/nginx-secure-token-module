@@ -5,7 +5,10 @@ language: c
 compiler:
     - clang
     - gcc
-script: ./travis_build.sh
+env:
+    - NGX_SECURE_TOKEN_MODULE=--add-module=./nginx-secure-token-module
+    - NGX_SECURE_TOKEN_MODULE=--add-dynamic-module=./nginx-secure-token-module
+script: ./travis_build.sh $NGX_SECURE_TOKEN_MODULE
 notifications:
   email:
     recipients:
