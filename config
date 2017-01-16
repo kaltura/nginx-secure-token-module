@@ -1,8 +1,6 @@
 ngx_addon_name=ngx_http_secure_token_filter_module
 
-HTTP_AUX_FILTER_MODULES="$HTTP_AUX_FILTER_MODULES ngx_http_secure_token_filter_module"
-
-NGX_ADDON_DEPS="$NGX_ADDON_DEPS                                                       \
+SEC_TOKEN_DEPS="$NGX_ADDON_DEPS                                                       \
 				$ngx_addon_dir/akamai/ngx_http_secure_token_akamai.h                  \
 				$ngx_addon_dir/akamai/ngx_http_secure_token_akamai_commands.h         \
 				$ngx_addon_dir/cloudfront/ngx_http_secure_token_cloudfront.h          \
@@ -18,7 +16,7 @@ NGX_ADDON_DEPS="$NGX_ADDON_DEPS                                                 
 				$ngx_addon_dir/ngx_http_secure_token_xml.h                            \
 				"
 
-NGX_ADDON_SRCS="$NGX_ADDON_SRCS                                                       \
+SEC_TOKEN_SRCS="$NGX_ADDON_SRCS                                                       \
 				$ngx_addon_dir/akamai/ngx_http_secure_token_akamai.c                  \
 				$ngx_addon_dir/cloudfront/ngx_http_secure_token_cloudfront.c          \
 				$ngx_addon_dir/cht/ngx_http_secure_token_cht.c                        \
@@ -29,3 +27,16 @@ NGX_ADDON_SRCS="$NGX_ADDON_SRCS                                                 
 				$ngx_addon_dir/ngx_http_secure_token_utils.c                          \
 				$ngx_addon_dir/ngx_http_secure_token_xml.c                            \
 				"
+
+if [ -n "$ngx_module_link" ]; then
+    ngx_module_type=HTTP_AUX_FILTER
+    ngx_module_name=ngx_http_secure_token_filter_module
+    ngx_module_deps="$SEC_TOKEN_DEPS"
+    ngx_module_srcs="$SEC_TOKEN_SRCS"
+
+    . auto/module
+else
+    HTTP_AUX_FILTER_MODULES="$HTTP_AUX_FILTER_MODULES ngx_http_secure_token_filter_module"
+    NGX_ADDON_DEPS="$NGX_ADDON_DEPS $SEC_TOKEN_DEPS"
+    NGX_ADDON_SRCS="$NGX_ADDON_SRCS $SEC_TOKEN_SRCS"
+fi
