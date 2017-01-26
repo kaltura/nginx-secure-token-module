@@ -4,11 +4,17 @@ Generates CDN tokens, either as a cookie or as a query string parameter (m3u8,mp
 Currently supports Akamai v2 tokens, and Amazon CloudFront tokens.
 In addition, the module supports the encryption of URIs with a configured key.
 
-## Installation
+## Build
 
-Add `--add-module` when configuring nginx:
+To link statically against nginx, cd to nginx source directory and execute:
 
-    ./configure --add-module=$PATH_TO_SECURE_TOKEN
+    ./configure --add-module=/path/to/nginx-secure-token-module
+
+To compile as a dynamic module (nginx 1.9.11+), use:
+  
+	./configure --add-dynamic-module=/path/to/nginx-secure-token-module
+
+In this case, the `load_module` directive should be used in nginx.conf to load the module.
 
 Requires OpenSSL.
 
