@@ -62,4 +62,9 @@ ngx_int_t ngx_http_secure_token_sign(
 	ngx_str_t* message,
 	ngx_str_t* signature);
 
+ngx_int_t  ngx_http_secure_token_escape_xml(
+	ngx_pool_t* pool,
+	ngx_str_t* src,
+	ngx_str_t* dest);
+
 #endif // _NGX_HTTP_SECURE_TOKEN_UTILS_H_INCLUDED_

@@ -1,6 +1,7 @@
 #include "ngx_http_secure_token_processor_base.h"
 #include "ngx_http_secure_token_filter_module.h"
 #include "ngx_http_secure_token_encrypt_uri.h"
+#include "ngx_http_secure_token_utils.h"
 #include "ngx_http_secure_token_m3u8.h"
 #include "ngx_http_secure_token_xml.h"
 
@@ -30,11 +31,17 @@ struct ngx_http_secure_token_ctx_s {
 	} u;
 };
 
+typedef ngx_int_t (*ngx_http_secure_token_escape_t)(
+	ngx_pool_t* pool,
+	ngx_str_t* src,
+	ngx_str_t* dest);
+
 typedef struct {
 	off_t content_type_offset;			// in ngx_http_secure_token_loc_conf_t
 	ngx_http_secure_token_body_processor_t process;
 	off_t processor_context_offset;		// in ngx_http_secure_token_ctx_t
 	void* processor_params;
+	ngx_http_secure_token_escape_t escape;
 } body_processor_t;
 
 // body processors config constants
@@ -83,19 +90,22 @@ static body_processor_t body_processors[] = {
 		offsetof(ngx_http_secure_token_loc_conf_t, content_type_m3u8), 
 		(ngx_http_secure_token_body_processor_t)ngx_http_secure_token_m3u8_processor, 
 		offsetof(ngx_http_secure_token_ctx_t, u.m3u8), 
-		NULL 
+		NULL,
+		NULL,
 	},
 	{ 
 		offsetof(ngx_http_secure_token_loc_conf_t, content_type_mpd), 
 		(ngx_http_secure_token_body_processor_t)ngx_http_secure_token_xml_processor, 
 		offsetof(ngx_http_secure_token_ctx_t, u.xml), 
-		&mpd_nodes 
+		&mpd_nodes,
+		ngx_http_secure_token_escape_xml,
 	},
 	{
 		offsetof(ngx_http_secure_token_loc_conf_t, content_type_f4m), 
 		(ngx_http_secure_token_body_processor_t)ngx_http_secure_token_xml_processor, 
 		offsetof(ngx_http_secure_token_ctx_t, u.xml), 
-		&f4m_nodes 
+		&f4m_nodes,
+		ngx_http_secure_token_escape_xml,
 	},
 };
 
@@ -565,6 +575,7 @@ ngx_http_secure_token_init_body_filter(ngx_http_request_t *r, ngx_str_t* token)
 	ngx_http_secure_token_loc_conf_t *conf;
 	ngx_http_secure_token_ctx_t* ctx;
 	body_processor_t* processor;
+	ngx_int_t rc;
 
 	conf = ngx_http_get_module_loc_conf(r, ngx_http_secure_token_filter_module);
 
@@ -582,7 +593,19 @@ ngx_http_secure_token_init_body_filter(ngx_http_request_t *r, ngx_str_t* token)
 		return NGX_ERROR;
 	}
 
-	ctx->token = *token;
+	if (processor->escape != NULL)
+	{
+		rc = processor->escape(r->pool, token, &ctx->token);
+		if (rc != NGX_OK)
+		{
+			return rc;
+		}
+	}
+	else
+	{
+		ctx->token = *token;
+	}
+
 	ctx->process = processor->process;
 	ctx->processor_context_offset = processor->processor_context_offset;
 	ctx->processor_params = processor->processor_params;
