@@ -1,7 +1,6 @@
 ngx_addon_name=ngx_http_secure_token_filter_module
 
-SEC_TOKEN_DEPS="$NGX_ADDON_DEPS                                                       \
-				$ngx_addon_dir/akamai/ngx_http_secure_token_akamai.h                  \
+SEC_TOKEN_DEPS="$ngx_addon_dir/akamai/ngx_http_secure_token_akamai.h                  \
 				$ngx_addon_dir/akamai/ngx_http_secure_token_akamai_commands.h         \
 				$ngx_addon_dir/cloudfront/ngx_http_secure_token_cloudfront.h          \
 				$ngx_addon_dir/cloudfront/ngx_http_secure_token_cloudfront_commands.h \
@@ -16,8 +15,7 @@ SEC_TOKEN_DEPS="$NGX_ADDON_DEPS                                                 
 				$ngx_addon_dir/ngx_http_secure_token_xml.h                            \
 				"
 
-SEC_TOKEN_SRCS="$NGX_ADDON_SRCS                                                       \
-				$ngx_addon_dir/akamai/ngx_http_secure_token_akamai.c                  \
+SEC_TOKEN_SRCS="$ngx_addon_dir/akamai/ngx_http_secure_token_akamai.c                  \
 				$ngx_addon_dir/cloudfront/ngx_http_secure_token_cloudfront.c          \
 				$ngx_addon_dir/cht/ngx_http_secure_token_cht.c                        \
 				$ngx_addon_dir/ngx_http_secure_token_encrypt_uri.c                    \
