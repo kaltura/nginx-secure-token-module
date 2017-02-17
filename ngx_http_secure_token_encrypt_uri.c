@@ -189,6 +189,7 @@ ngx_int_t
 ngx_http_secure_token_decrypt_uri(ngx_http_request_t *r)
 {
 	ngx_http_secure_token_loc_conf_t *conf;
+	ngx_http_core_loc_conf_t *clcf;
 	ngx_str_t encrypt_uri_part;
 	ngx_str_t base64_decoded;
 	ngx_str_t decrypted;
@@ -297,6 +298,20 @@ ngx_http_secure_token_decrypt_uri(ngx_http_request_t *r)
 
 	r->uri = new_uri;
 	r->unparsed_uri = new_uri;		// TODO: fix this
+
+	clcf = ngx_http_get_module_loc_conf(r, ngx_http_core_module);
+
+	if (clcf->regex != NULL)
+	{
+		// execute the regex again, so that capture variables will contain the decrypted content
+		rc = ngx_http_regex_exec(r, clcf->regex, &r->uri);
+		if (rc != NGX_OK)
+		{
+			ngx_log_debug0(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+				"ngx_http_secure_token_decrypt_uri: ngx_http_regex_exec failed");
+			return NGX_ERROR;
+		}
+	}
 
 	// free temporary buffer
 	ngx_pfree(r->pool, decrypted.data);
