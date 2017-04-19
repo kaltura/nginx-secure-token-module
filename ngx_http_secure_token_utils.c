@@ -420,7 +420,10 @@ ngx_http_secure_token_sign(
 	ngx_str_t* message, 
 	ngx_str_t* signature)
 {
-	EVP_MD_CTX md_ctx;
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
+	EVP_MD_CTX md_ctx_buf;
+#endif
+	EVP_MD_CTX* md_ctx;
 	unsigned int siglen;
 
 	signature->data = ngx_pnalloc(r->pool, EVP_PKEY_size(private_key) + 1);
@@ -429,31 +432,48 @@ ngx_http_secure_token_sign(
 		return NGX_ERROR;
 	}
 
-	EVP_MD_CTX_init(&md_ctx);
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
+	md_ctx = EVP_MD_CTX_new();
+	if (md_ctx == NULL)
+	{
+		return NGX_ERROR;
+	}
+#else
+	md_ctx = &md_ctx_buf;
+	EVP_MD_CTX_init(md_ctx);
+#endif
 
-	if (!EVP_SignInit_ex(&md_ctx, EVP_sha1(), NULL))
+	if (!EVP_SignInit_ex(md_ctx, EVP_sha1(), NULL))
 	{
 		goto error;
 	}
 
-	if (!EVP_SignUpdate(&md_ctx, message->data, message->len))
+	if (!EVP_SignUpdate(md_ctx, message->data, message->len))
 	{
 		goto error;
 	}
 
-	if (!EVP_SignFinal(&md_ctx, signature->data, &siglen, private_key))
+	if (!EVP_SignFinal(md_ctx, signature->data, &siglen, private_key))
 	{
 		goto error;
 	}
 
-	EVP_MD_CTX_cleanup(&md_ctx);
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
+	EVP_MD_CTX_free(md_ctx);
+#else
+	EVP_MD_CTX_cleanup(md_ctx);
+#endif
 
 	signature->len = siglen;
 	return NGX_OK;
 
 error:
 
-	EVP_MD_CTX_cleanup(&md_ctx);
+#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
+	EVP_MD_CTX_free(md_ctx);
+#else
+	EVP_MD_CTX_cleanup(md_ctx);
+#endif
 	return NGX_ERROR;
 }
 

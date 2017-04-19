@@ -131,13 +131,19 @@ ngx_http_secure_token_crypt(
 	ngx_str_t* buffer2, 
 	ngx_flag_t encrypt)
 {
-	EVP_CIPHER_CTX ctx;
+	EVP_CIPHER_CTX* ctx;
 	u_char* p;
 	int output_len;
 
-	EVP_CIPHER_CTX_init(&ctx);
+	ctx = EVP_CIPHER_CTX_new();
+	if (ctx == NULL)
+	{
+		ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+			"ngx_http_secure_token_crypt: EVP_CIPHER_CTX_new failed");
+		return NGX_ERROR;
+	}
 
-	if (!EVP_CipherInit_ex(&ctx, EVP_aes_256_cbc(), NULL, key, iv, encrypt))
+	if (!EVP_CipherInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv, encrypt))
 	{
 		ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
 			"ngx_http_secure_token_crypt: EVP_CipherInit_ex failed");
@@ -146,7 +152,7 @@ ngx_http_secure_token_crypt(
 
 	p = dest->data;
 
-	if (!EVP_CipherUpdate(&ctx, p, &output_len, buffer1->data, buffer1->len))
+	if (!EVP_CipherUpdate(ctx, p, &output_len, buffer1->data, buffer1->len))
 	{
 		ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
 			"ngx_http_secure_token_crypt: EVP_CipherUpdate failed (1)");
@@ -156,7 +162,7 @@ ngx_http_secure_token_crypt(
 
 	if (buffer2 != NULL)
 	{
-		if (!EVP_CipherUpdate(&ctx, p, &output_len, buffer2->data, buffer2->len))
+		if (!EVP_CipherUpdate(ctx, p, &output_len, buffer2->data, buffer2->len))
 		{
 			ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
 				"ngx_http_secure_token_crypt: EVP_CipherUpdate failed (2)");
@@ -165,7 +171,7 @@ ngx_http_secure_token_crypt(
 		p += output_len;
 	}
 
-	if (!EVP_CipherFinal_ex(&ctx, p, &output_len))
+	if (!EVP_CipherFinal_ex(ctx, p, &output_len))
 	{
 		ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
 			"ngx_http_secure_token_crypt: EVP_CipherFinal_ex failed");
@@ -173,7 +179,7 @@ ngx_http_secure_token_crypt(
 	}
 	p += output_len;
 
-	EVP_CIPHER_CTX_cleanup(&ctx);
+	EVP_CIPHER_CTX_free(ctx);
 
 	dest->len = p - dest->data;
 
@@ -181,7 +187,7 @@ ngx_http_secure_token_crypt(
 
 error:
 
-	EVP_CIPHER_CTX_cleanup(&ctx);
+	EVP_CIPHER_CTX_free(ctx);
 	return NGX_ERROR;
 }
 
