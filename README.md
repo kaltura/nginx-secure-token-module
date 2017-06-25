@@ -375,7 +375,7 @@ this enables the caching of the segments transparently by proxies.
 			secure_token_uri_filename_prefix index;
 			secure_token_tokenize_segments off;
 
-			akamai_token_validate on;
+			akamai_token_validate $arg___hdnea__;
 			akamai_token_validate_key 1234;
 			akamai_token_validate_uri_filename_prefix encryption;
 			akamai_token_validate_uri_filename_prefix index;
@@ -405,9 +405,9 @@ in addition to nginx-secure-token-module
 			secure_token_expires_time 100d;
 			secure_token_query_token_expires_time 1h;
 
-			akamai_token_validate on;
+			akamai_token_validate $arg___hdnea__;
 			akamai_token_validate_key 1234;
-			akamai_token_validate_strip_token on;
+			akamai_token_validate_strip_token __hdnea__;
 		}
 	
 	}
