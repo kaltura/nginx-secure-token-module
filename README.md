@@ -407,7 +407,7 @@ in addition to nginx-secure-token-module
 
 			akamai_token_validate $arg___hdnea__;
 			akamai_token_validate_key 1234;
-			akamai_token_validate_strip_token on;
+			akamai_token_validate_strip_token __hdnea__;
 		}
 	
 	}
