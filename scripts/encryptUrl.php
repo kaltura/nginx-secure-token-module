@@ -22,6 +22,9 @@ $signedUrl .= str_repeat(chr($pad), $pad);
 // AES encrypt
 $encrypted = mcrypt_encrypt(MCRYPT_RIJNDAEL_128, $ENC_KEY, $signedUrl, MCRYPT_MODE_CBC, $ENC_IV);
 
+// AES encrypt for PHP >= 7.1.0
+//$encrypted = openssl_encrypt($signedUrl, 'aes-256-cbc', $ENC_KEY, OPENSSL_RAW_DATA | OPENSSL_NO_PADDING, $ENC_IV);
+
 // base64 encrypt
 $base64Encoded = rtrim(strtr(base64_encode($encrypted), '+/', '-_'), '=');
 
