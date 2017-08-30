@@ -19,8 +19,21 @@ $signedUrl = substr(md5($ENC_URL, true), 0, $HASH_SIZE) . $ENC_URL;
 $pad = 16 - (strlen($signedUrl) % 16);
 $signedUrl .= str_repeat(chr($pad), $pad);
 
+$encrypted = null;
+
 // AES encrypt
-$encrypted = mcrypt_encrypt(MCRYPT_RIJNDAEL_128, $ENC_KEY, $signedUrl, MCRYPT_MODE_CBC, $ENC_IV);
+if (function_exists('mcrypt_encrypt')) 
+{
+    $encrypted = mcrypt_encrypt(MCRYPT_RIJNDAEL_128, $ENC_KEY, $signedUrl, MCRYPT_MODE_CBC, $ENC_IV);
+}
+else if (function_exists('openssl_encrypt'))
+{
+    $encrypted = openssl_encrypt($signedUrl, 'aes-256-cbc', $ENC_KEY, OPENSSL_RAW_DATA | OPENSSL_NO_PADDING, $ENC_IV);
+}
+else
+{
+    die("need either mcrypt or openssl extension\n");
+}
 
 // base64 encrypt
 $base64Encoded = rtrim(strtr(base64_encode($encrypted), '+/', '-_'), '=');
