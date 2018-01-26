@@ -4,14 +4,15 @@
 #include "ngx_http_secure_token_utils.h"
 #include <openssl/evp.h>
 #include <ngx_md5.h>
+#include <stdio.h>
 
 // Note: a modified version of ngx_strstrn that gets ngx_str_t's
 static u_char *
-ngx_http_secure_token_strstr(ngx_str_t* haystack, ngx_str_t* needle)
+ngx_http_secure_token_strstr(ngx_str_t* haystack, ngx_str_t* needle, size_t haystack_len)
 {
 	u_char  c1, c2;
 	u_char* s1 = haystack->data;
-	u_char* s1_end = haystack->data + haystack->len - needle->len;
+	u_char* s1_end = haystack->data + haystack_len - needle->len;
 	u_char* s2 = needle->data + 1;
 	size_t s2_len = needle->len - 1;
 
@@ -36,6 +37,7 @@ static ngx_int_t
 ngx_http_secure_token_get_encryted_part(
 	ngx_http_request_t *r,
 	ngx_str_t* uri,
+	size_t uri_len,
 	ngx_flag_t execute,
 	ngx_str_t* encrypt_uri_part, 
 	size_t* uri_prefix_len,
@@ -108,7 +110,7 @@ ngx_http_secure_token_get_encryted_part(
 	}
 
 	// find the encrypted part on the uri
-	encrypt_uri_pos = ngx_http_secure_token_strstr(uri, encrypt_uri_part);
+	encrypt_uri_pos = ngx_http_secure_token_strstr(uri, encrypt_uri_part, uri_len);
 	if (encrypt_uri_pos == NULL)
 	{
 		ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
@@ -116,7 +118,7 @@ ngx_http_secure_token_get_encryted_part(
 		return NGX_ERROR;
 	}
 	*uri_prefix_len = encrypt_uri_pos - uri->data;
-	*uri_suffix_len = uri->len - *uri_prefix_len - encrypt_uri_part->len;
+	*uri_suffix_len = uri_len - *uri_prefix_len - encrypt_uri_part->len;
 
 	return NGX_OK;
 }
@@ -213,8 +215,11 @@ ngx_http_secure_token_decrypt_uri(ngx_http_request_t *r)
 		return NGX_OK;
 	}
 	
+	// length of URI including query
+	size_t uri_len = strlen((char*)r->uri.data);
+
 	// get the encrypted part
-	rc = ngx_http_secure_token_get_encryted_part(r, &r->uri, 0, &encrypt_uri_part, &uri_prefix_len, &uri_suffix_len);
+	rc = ngx_http_secure_token_get_encryted_part(r, &r->uri, uri_len, 0, &encrypt_uri_part, &uri_prefix_len, &uri_suffix_len);
 	if (rc != NGX_OK || encrypt_uri_part.len == 0)
 	{
 		return rc;
@@ -224,6 +229,7 @@ ngx_http_secure_token_decrypt_uri(ngx_http_request_t *r)
 	base64_decoded.len = ngx_base64_decoded_length(encrypt_uri_part.len);
 	decrypted.len = base64_decoded.len;
 	new_uri.len = uri_prefix_len + decrypted.len + uri_suffix_len;
+
 
 	new_uri.data = ngx_pnalloc(r->pool, new_uri.len + 1);
 	if (new_uri.data == NULL)
@@ -273,7 +279,7 @@ ngx_http_secure_token_decrypt_uri(ngx_http_request_t *r)
 	{
 		return rc;
 	}
-
+	
 	// validate signature
 	if (decrypted.len < conf->encrypt_uri_hash_size)
 	{
@@ -296,7 +302,7 @@ ngx_http_secure_token_decrypt_uri(ngx_http_request_t *r)
 	// update the uri
 	p = ngx_copy(new_uri.data, r->uri.data, uri_prefix_len);
 	p = ngx_copy(p, decrypted.data + conf->encrypt_uri_hash_size, decrypted.len - conf->encrypt_uri_hash_size);
-	p = ngx_copy(p, r->uri.data + r->uri.len - uri_suffix_len, uri_suffix_len);
+	p = ngx_copy(p, r->uri.data + uri_len - uri_suffix_len, uri_suffix_len);
 	*p = 0;
 
 	new_uri.len = p - new_uri.data;
@@ -329,7 +335,7 @@ ngx_http_secure_token_encrypt_uri(ngx_http_request_t* r, ngx_str_t* src, ngx_str
 	conf = ngx_http_get_module_loc_conf(r, ngx_http_secure_token_filter_module);
 
 	// get the encrypted part
-	rc = ngx_http_secure_token_get_encryted_part(r, src, 1, &encrypt_uri_part, &uri_prefix_len, &uri_suffix_len);
+	rc = ngx_http_secure_token_get_encryted_part(r, src, src->len, 1, &encrypt_uri_part, &uri_prefix_len, &uri_suffix_len);
 	if (rc != NGX_OK)
 	{
 		return rc;
