@@ -3,6 +3,7 @@
 
 static u_char encryption_key_tag[] = "EXT-X-KEY";
 static u_char ext_media_tag[] = "EXT-X-MEDIA";
+static u_char ext_i_frame_tag[] = "EXT-X-I-FRAME-STREAM-INF";
 static u_char uri_attr_name[] = "URI";
 
 enum {
@@ -104,7 +105,9 @@ ngx_http_secure_token_m3u8_processor(
 					if ((ctx->tag_name_len == sizeof(encryption_key_tag) - 1 &&
 						ngx_memcmp(ctx->tag_name, encryption_key_tag, sizeof(encryption_key_tag) - 1) == 0) ||
 						(ctx->tag_name_len == sizeof(ext_media_tag) - 1 &&
-						ngx_memcmp(ctx->tag_name, ext_media_tag, sizeof(ext_media_tag) - 1) == 0))
+						ngx_memcmp(ctx->tag_name, ext_media_tag, sizeof(ext_media_tag) - 1) == 0) ||
+						(ctx->tag_name_len == sizeof(ext_i_frame_tag) - 1 &&
+						ngx_memcmp(ctx->tag_name, ext_i_frame_tag, sizeof(ext_i_frame_tag) - 1) == 0))
 					{
 						ctx->base.state = STATE_URL_SCHEME;
 						ctx->base.scheme_pos = 0;
