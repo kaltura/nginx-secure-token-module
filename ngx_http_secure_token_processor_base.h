@@ -5,6 +5,8 @@
 #include <ngx_core.h>
 #include "ngx_http_secure_token_conf.h"
 
+#define MAX_SCHEME_LEN (10)
+
 // enums
 enum {
 	STATE_INITIAL,
@@ -28,6 +30,8 @@ typedef struct {
 
 	int state;
 	unsigned scheme_pos;
+	u_char scheme[MAX_SCHEME_LEN];
+	unsigned scheme_delim_pos;
 	u_char last_url_char;
 	size_t uri_path_alloc_size;
 	ngx_str_t uri_path;
@@ -49,6 +53,12 @@ typedef ngx_int_t (*ngx_http_secure_token_body_processor_t)(
 	ngx_http_secure_token_processor_output_t* output);
 
 // processor utility functions
+
+void ngx_http_secure_token_url_state_machine_init(
+	ngx_http_secure_token_base_ctx_t* ctx,
+	ngx_flag_t tokenize,
+	int url_end_state,
+	u_char url_end_char);
 
 ngx_int_t ngx_http_secure_token_url_state_machine(
 	ngx_http_request_t* r,

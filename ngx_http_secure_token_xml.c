@@ -99,11 +99,11 @@ ngx_http_secure_token_xml_processor(
 				if (ctx->base.state == STATE_TAG_NAME && 
 					ngx_http_secure_token_xml_is_relevant_attr(ctx, nodes, 0))
 				{
-					ctx->base.state = STATE_URL_SCHEME;
-					ctx->base.scheme_pos = 0;
-					ctx->base.tokenize = 1;
-					ctx->base.url_end_state = STATE_INITIAL;
-					ctx->base.url_end_char = '<';
+					ngx_http_secure_token_url_state_machine_init(
+						&ctx->base,
+						1,
+						STATE_INITIAL,
+						'<');
 					break;
 				}
 
@@ -137,11 +137,11 @@ ngx_http_secure_token_xml_processor(
 			{
 				if (ngx_http_secure_token_xml_is_relevant_attr(ctx, nodes, 0))
 				{
-					ctx->base.state = STATE_URL_SCHEME;
-					ctx->base.scheme_pos = 0;
-					ctx->base.tokenize = 1;
-					ctx->base.url_end_state = STATE_INITIAL;
-					ctx->base.url_end_char = '<';
+					ngx_http_secure_token_url_state_machine_init(
+						&ctx->base,
+						1,
+						STATE_INITIAL,
+						'<');
 					break;
 				}
 
@@ -159,11 +159,11 @@ ngx_http_secure_token_xml_processor(
 			{
 				if (ngx_http_secure_token_xml_is_relevant_attr(ctx, nodes, ctx->attr_name_len))
 				{
-					ctx->base.state = STATE_URL_SCHEME;
-					ctx->base.scheme_pos = 0;
-					ctx->base.tokenize = 1;
-					ctx->base.url_end_state = STATE_ATTR_VALUE_END;
-					ctx->base.url_end_char = '"';
+					ngx_http_secure_token_url_state_machine_init(
+						&ctx->base,
+						1,
+						STATE_ATTR_VALUE_END,
+						'"');
 					ctx->attr_name_len = 0;
 					break;
 				}

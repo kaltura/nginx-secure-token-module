@@ -121,6 +121,43 @@ static u_char scheme_delimeter[] = "://";
 // globals
 static ngx_http_output_body_filter_pt ngx_http_next_body_filter;
 
+void
+ngx_http_secure_token_url_state_machine_init(
+	ngx_http_secure_token_base_ctx_t* ctx,
+	ngx_flag_t tokenize,
+	int url_end_state,
+	u_char url_end_char)
+{
+	ctx->state = STATE_URL_SCHEME;
+	ctx->scheme_pos = 0;
+	ctx->scheme_delim_pos = 0;
+	ctx->tokenize = tokenize;
+	ctx->url_end_state = url_end_state;
+	ctx->url_end_char = url_end_char;
+}
+
+ngx_flag_t
+ngx_http_secure_token_is_http_scheme(
+	ngx_http_secure_token_base_ctx_t* ctx)
+{
+	if (ctx->scheme_delim_pos < sizeof(scheme_delimeter) - 1)
+	{
+		return 1;		// no scheme in the URL, derives the scheme of the manifest
+	}
+
+	switch (ctx->scheme_pos)
+	{
+	case 4:
+		return memcmp(ctx->scheme, "http", 4) == 0;
+
+	case 5:
+		return memcmp(ctx->scheme, "https", 5) == 0;
+
+	default:
+		return 0;
+	}
+}
+
 ngx_int_t
 ngx_http_secure_token_url_state_machine(
 	ngx_http_request_t* r,
@@ -152,7 +189,8 @@ ngx_http_secure_token_url_state_machine(
 				}
 			}
 
-			if (ctx->tokenize)
+			if (ctx->tokenize && 
+				ngx_http_secure_token_is_http_scheme(ctx))
 			{
 				if (ctx->state == STATE_URL_QUERY)
 				{
@@ -180,17 +218,21 @@ ngx_http_secure_token_url_state_machine(
 		switch (ctx->state)
 		{
 		case STATE_URL_SCHEME:
-			if (ch == scheme_delimeter[ctx->scheme_pos])
+			if (ch == scheme_delimeter[ctx->scheme_delim_pos])
 			{
-				ctx->scheme_pos++;
-				if (ctx->scheme_pos >= sizeof(scheme_delimeter) - 1)
+				ctx->scheme_delim_pos++;
+				if (ctx->scheme_delim_pos >= sizeof(scheme_delimeter) - 1)
 				{
 					ctx->state = STATE_URL_HOST;
 				}
 			}
 			else
 			{
-				ctx->scheme_pos = 0;
+				if (ctx->scheme_pos < sizeof(ctx->scheme))
+				{
+					ctx->scheme[ctx->scheme_pos++] = ch;
+				}
+				ctx->scheme_delim_pos = 0;
 			}
 			break;
 
