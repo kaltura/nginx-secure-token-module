@@ -50,11 +50,13 @@ ngx_http_secure_token_m3u8_processor(
 			{
 				if (conf->tokenize_segments || conf->encrypt_uri)
 				{
-					ctx->base.state = STATE_URL_SCHEME;
-					ctx->base.scheme_pos = 0;
-					ctx->base.tokenize = conf->tokenize_segments;
-					ctx->base.url_end_state = STATE_WAIT_NEWLINE;
-					ctx->base.url_end_char = 0;
+					ngx_http_secure_token_url_state_machine_init(
+						&ctx->base,
+						conf->tokenize_segments,
+						STATE_WAIT_NEWLINE,
+						0);
+
+					cur_pos--;		// push the current char to the url state machine
 				}
 				else
 				{
@@ -109,11 +111,11 @@ ngx_http_secure_token_m3u8_processor(
 						(ctx->tag_name_len == sizeof(ext_i_frame_tag) - 1 &&
 						ngx_memcmp(ctx->tag_name, ext_i_frame_tag, sizeof(ext_i_frame_tag) - 1) == 0))
 					{
-						ctx->base.state = STATE_URL_SCHEME;
-						ctx->base.scheme_pos = 0;
-						ctx->base.tokenize = 1;
-						ctx->base.url_end_state = STATE_ATTR_WAIT_DELIM;
-						ctx->base.url_end_char = '"';
+						ngx_http_secure_token_url_state_machine_init(
+							&ctx->base,
+							1,
+							STATE_ATTR_WAIT_DELIM,
+							'"');
 						break;
 					}
 				}
