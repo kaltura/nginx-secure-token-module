@@ -1,9 +1,14 @@
 #include "ngx_http_secure_token_encrypt_uri.h"
 #include "ngx_http_secure_token_m3u8.h"
 
-static u_char encryption_key_tag[] = "EXT-X-KEY";
-static u_char ext_media_tag[] = "EXT-X-MEDIA";
-static u_char ext_i_frame_tag[] = "EXT-X-I-FRAME-STREAM-INF";
+static ngx_str_t uri_tags[] = {
+	ngx_string("EXT-X-MAP"),
+	ngx_string("EXT-X-KEY"),
+	ngx_string("EXT-X-MEDIA"),
+	ngx_string("EXT-X-I-FRAME-STREAM-INF"),
+	ngx_null_string,
+};
+
 static u_char uri_attr_name[] = "URI";
 
 enum {
@@ -15,6 +20,25 @@ enum {
 	STATE_WAIT_NEWLINE,
 };
 
+static ngx_flag_t
+ngx_http_secure_token_m3u8_is_string_in_array(
+	ngx_str_t* array,
+	u_char* data,
+	size_t len)
+{
+	ngx_str_t* cur_str;
+
+	for (cur_str = array; cur_str->len; cur_str++)
+	{
+		if (len == cur_str->len &&
+			ngx_memcmp(data, cur_str->data, cur_str->len) == 0)
+		{
+			return 1;
+		}
+	}
+
+	return 0;
+}
 
 // The example below shows the trasitions between the different states (numbers represent the state value):
 // #EXT-X-KEY:METHOD=AES-128,URI="encryption.key"
@@ -104,12 +128,10 @@ ngx_http_secure_token_m3u8_processor(
 				if (ctx->attr_name_len == sizeof(uri_attr_name) - 1 &&
 					ngx_memcmp(ctx->attr_name, uri_attr_name, sizeof(uri_attr_name) - 1) == 0)
 				{
-					if ((ctx->tag_name_len == sizeof(encryption_key_tag) - 1 &&
-						ngx_memcmp(ctx->tag_name, encryption_key_tag, sizeof(encryption_key_tag) - 1) == 0) ||
-						(ctx->tag_name_len == sizeof(ext_media_tag) - 1 &&
-						ngx_memcmp(ctx->tag_name, ext_media_tag, sizeof(ext_media_tag) - 1) == 0) ||
-						(ctx->tag_name_len == sizeof(ext_i_frame_tag) - 1 &&
-						ngx_memcmp(ctx->tag_name, ext_i_frame_tag, sizeof(ext_i_frame_tag) - 1) == 0))
+					if (ngx_http_secure_token_m3u8_is_string_in_array(
+						uri_tags,
+						ctx->tag_name,
+						ctx->tag_name_len))
 					{
 						ngx_http_secure_token_url_state_machine_init(
 							&ctx->base,
