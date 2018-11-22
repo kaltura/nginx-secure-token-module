@@ -28,7 +28,7 @@ ngx_http_secure_token_m3u8_is_string_in_array(
 {
 	ngx_str_t* cur_str;
 
-	for (cur_str = array; cur_str->len; cur_str++)
+	for (cur_str = array; cur_str->len != 0; cur_str++)
 	{
 		if (len == cur_str->len &&
 			ngx_memcmp(data, cur_str->data, cur_str->len) == 0)
