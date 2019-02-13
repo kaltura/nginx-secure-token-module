@@ -71,14 +71,7 @@ ngx_secure_token_iijpta_get_var(
 		return NGX_ERROR;
 	}
 
-	now = time(NULL);
-	if (now == -1)
-	{
-		ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
-				   "%s", "couldn't get current time");
-		return NGX_ERROR;
-	}
-
+	now = ngx_time();
 	deadline = now + token->timelimit;
 	deadline = htobe64(deadline);
 	memcpy(&in[CRC32_SIZE], &deadline, sizeof(deadline));
