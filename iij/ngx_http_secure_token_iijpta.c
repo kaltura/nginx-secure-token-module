@@ -2,15 +2,13 @@
 #include "../ngx_http_secure_token_filter_module.h"
 #include "../ngx_http_secure_token_utils.h"
 
-#include <time.h>
-#include <openssl/hmac.h>
 #include <openssl/evp.h>
 
 // constants
 #define CRC32_SIZE    4
 #define DEADLINE_SIZE 8
 #define PATH_LIMIT    1024
-	
+
 // typedefs
 typedef struct {
 	ngx_str_t key;
@@ -27,7 +25,7 @@ static ngx_command_t ngx_http_secure_token_iijpta_cmds[] = {
 	0,
 	offsetof(ngx_secure_token_iijpta_token_t, key),
 	NULL },
-	
+
 	{ ngx_string("iv"),
 	NGX_CONF_TAKE1,
 	ngx_http_secure_token_conf_set_hex_str_slot,
@@ -80,7 +78,7 @@ ngx_secure_token_iijpta_get_var(
 				   "%s", "couldn't get current time");
 		return NGX_ERROR;
 	}
-	
+
 	deadline = now + token->timelimit;
 	deadline = htobe64(deadline);
 	memcpy(&in[CRC32_SIZE], &deadline, sizeof(deadline));
@@ -104,7 +102,7 @@ ngx_secure_token_iijpta_get_var(
 	qparam = ngx_copy(qparam, "pta=", sizeof("pta=") - 1);
 	qparam = ngx_hex_dump(qparam, out, out_len1 + out_len2);
 	*qparam = '\0';
-	
+
 	v->len = qparam - v->data;
 	v->valid = 1;
 	v->no_cacheable = 0;
