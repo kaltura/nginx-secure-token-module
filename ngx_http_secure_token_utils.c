@@ -76,6 +76,7 @@ ngx_http_secure_token_decode_hex(ngx_pool_t* pool, ngx_str_t* src, ngx_str_t* de
 char *
 ngx_http_secure_token_conf_set_hex_str_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
+	ngx_conf_post_t *post;
 	ngx_str_t *field;
 	ngx_str_t *value;
 	ngx_int_t rc;
@@ -98,6 +99,11 @@ ngx_http_secure_token_conf_set_hex_str_slot(ngx_conf_t *cf, ngx_command_t *cmd, 
 		return "invalid hex string";
 	}
 
+	if (cmd->post) {
+		post = cmd->post;
+		return post->post_handler(cf, post, field);
+	}
+
 	return NGX_CONF_OK;
 }
 
@@ -105,6 +111,7 @@ char *
 ngx_http_secure_token_conf_set_time_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
 	ngx_secure_token_time_t* result;
+	ngx_conf_post_t *post;
 	ngx_uint_t minus;
 	ngx_str_t *value;
 
@@ -126,14 +133,14 @@ ngx_http_secure_token_conf_set_time_slot(ngx_conf_t *cf, ngx_command_t *cmd, voi
 	{
 		result->type = NGX_HTTP_SECURE_TOKEN_TIME_ABSOLUTE;
 		result->val = 0;
-		return NGX_OK;
+		goto done;
 	}
 
 	if (value->len == 3 && ngx_strncmp(value->data, "max", 3) == 0)
 	{
 		result->type = NGX_HTTP_SECURE_TOKEN_TIME_ABSOLUTE;
 		result->val = INT_MAX;
-		return NGX_OK;
+		goto done;
 	}
 
 	switch (value->data[0])
@@ -175,6 +182,13 @@ ngx_http_secure_token_conf_set_time_slot(ngx_conf_t *cf, ngx_command_t *cmd, voi
 		result->val = -result->val;
 	}
 
+done:
+
+	if (cmd->post) {
+		post = cmd->post;
+		return post->post_handler(cf, post, result);
+	}
+
 	return NGX_CONF_OK;
 }
 
@@ -182,6 +196,7 @@ char *
 ngx_http_secure_token_conf_set_private_key_slot(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
 	ngx_pool_cleanup_t* cln;
+	ngx_conf_post_t *post;
 	ngx_str_t *value;
 	EVP_PKEY** result;
 	BIO *in;
@@ -218,6 +233,11 @@ ngx_http_secure_token_conf_set_private_key_slot(ngx_conf_t *cf, ngx_command_t *c
 
 	cln->handler = (ngx_pool_cleanup_pt)EVP_PKEY_free;
 	cln->data = *result;
+
+	if (cmd->post) {
+		post = cmd->post;
+		return post->post_handler(cf, post, *result);
+	}
 
 	return NGX_CONF_OK;
 }
