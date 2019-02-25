@@ -100,7 +100,7 @@ ngx_secure_token_iijpta_get_var(
 	ngx_secure_token_iijpta_token_t* token = (void*)data;
 	u_char* in;
 	size_t in_len  = CRC32_SIZE + DEADLINE_SIZE + token->path.len;
-	u_char *qparam;
+	u_char *p;
 	uint8_t out[PATH_LIMIT * 2];
 	int out_len1, out_len2;
 	time_t now;
@@ -126,18 +126,18 @@ ngx_secure_token_iijpta_get_var(
 	EVP_EncryptFinal(&ctx, out + out_len1, &out_len2);
 
 	/* sizeof("pta=") returns 5, includes null termination. */
-	qparam = ngx_pnalloc(r->pool, sizeof("pta=") + ((out_len1 + out_len2) * 2));
-	if (qparam == NULL)
+	p = ngx_pnalloc(r->pool, sizeof("pta=") + ((out_len1 + out_len2) * 2));
+	if (p == NULL)
 	{
 		return NGX_ERROR;
 	}
 
-	v->data = qparam;
-	qparam = ngx_copy(qparam, "pta=", sizeof("pta=") - 1);
-	qparam = ngx_hex_dump(qparam, out, out_len1 + out_len2);
-	*qparam = '\0';
+	v->data = p;
+	p = ngx_copy(p, "pta=", sizeof("pta=") - 1);
+	p = ngx_hex_dump(p, out, out_len1 + out_len2);
+	*p = '\0';
 
-	v->len = qparam - v->data;
+	v->len = p - v->data;
 	v->valid = 1;
 	v->no_cacheable = 0;
 	v->not_found = 0;
