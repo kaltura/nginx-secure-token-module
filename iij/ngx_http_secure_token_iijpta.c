@@ -124,13 +124,30 @@ ngx_secure_token_iijpta_get_var(
 	ctx = EVP_CIPHER_CTX_new();
 	if (ctx == NULL) {
 	    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
-			  "ngx_http_secure_token_crypt: EVP_CIPHER_CTX_new failed");
+			  "ngx_secure_token_iijpta_get_var: EVP_CIPHER_CTX_new failed");
 	    return NGX_ERROR;
 	}
 
-	EVP_EncryptInit(ctx, EVP_aes_128_cbc(), token->key.data, token->iv.data);
-	EVP_EncryptUpdate(ctx, out, &out_len1, in, in_len);
-	EVP_EncryptFinal(ctx, out + out_len1, &out_len2);
+	if (!EVP_EncryptInit(ctx, EVP_aes_128_cbc(), token->key.data, token->iv.data)) {
+	    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+			  "ngx_secure_token_iijpta_get_var: EVP_EncryptInit failed");
+	    EVP_CIPHER_CTX_free(ctx);
+	    return NGX_ERROR;
+	}
+
+	if (!EVP_EncryptUpdate(ctx, out, &out_len1, in, in_len)) {
+	    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+			  "ngx_secure_token_iijpta_get_var: EVP_EncryptUpdate failed");
+	    EVP_CIPHER_CTX_free(ctx);
+	    return NGX_ERROR;
+	}
+
+	if (!EVP_EncryptFinal(ctx, out + out_len1, &out_len2)) {
+	    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+			  "ngx_secure_token_iijpta_get_var: EVP_EncryptFinal failed");
+	    EVP_CIPHER_CTX_free(ctx);
+	    return NGX_ERROR;
+	}
 
 	/* sizeof("pta=") returns 5, includes null termination. */
 	p = ngx_pnalloc(r->pool, sizeof("pta=") + ((out_len1 + out_len2) * 2));
