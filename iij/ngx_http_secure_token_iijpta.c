@@ -109,7 +109,8 @@ ngx_secure_token_iijpta_get_var(
 	u_char *p;
 	// in_len rounded up to block + one block for padding
 	uint8_t out[((in_len + (16 - 1)) / 16) + 16];
-	int out_len1, out_len2;
+	u_char *outp;
+	int out_len;
 	uint64_t end;
 
 	in = ngx_pnalloc(r->pool, in_len);
@@ -139,22 +140,26 @@ ngx_secure_token_iijpta_get_var(
 	    return NGX_ERROR;
 	}
 
-	if (!EVP_EncryptUpdate(ctx, out, &out_len1, in, in_len)) {
+	outp = out;
+	if (!EVP_EncryptUpdate(ctx, outp, &out_len, in, in_len)) {
 	    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
 			  "ngx_secure_token_iijpta_get_var: EVP_EncryptUpdate failed");
 	    EVP_CIPHER_CTX_free(ctx);
 	    return NGX_ERROR;
 	}
+	outp += out_len;
 
-	if (!EVP_EncryptFinal(ctx, out + out_len1, &out_len2)) {
+	if (!EVP_EncryptFinal(ctx, outp, &out_len)) {
 	    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
 			  "ngx_secure_token_iijpta_get_var: EVP_EncryptFinal failed");
 	    EVP_CIPHER_CTX_free(ctx);
 	    return NGX_ERROR;
 	}
+	outp += out_len;
 
+	out_len = outp - out;
 	/* sizeof("pta=") returns 5, includes null termination. */
-	p = ngx_pnalloc(r->pool, sizeof("pta=") + ((out_len1 + out_len2) * 2));
+	p = ngx_pnalloc(r->pool, sizeof("pta=") + (out_len * 2));
 	if (p == NULL)
 	{
 	    EVP_CIPHER_CTX_free(ctx);
@@ -163,7 +168,7 @@ ngx_secure_token_iijpta_get_var(
 
 	v->data = p;
 	p = ngx_copy(p, "pta=", sizeof("pta=") - 1);
-	p = ngx_hex_dump(p, out, out_len1 + out_len2);
+	p = ngx_hex_dump(p, out, out_len);
 	*p = '\0';
 
 	v->len = p - v->data;
