@@ -18,7 +18,7 @@ typedef struct {
 	ngx_str_t key;
 	ngx_str_t iv;
 	ngx_str_t path;
-	time_t    timelimit;
+	ngx_secure_token_time_t end;
 } ngx_secure_token_iijpta_token_t;
 
 static ngx_conf_num_bounds_t ngx_http_secure_token_iijpta_key_bounds = {
@@ -52,11 +52,11 @@ static ngx_command_t ngx_http_secure_token_iijpta_cmds[] = {
 	offsetof(ngx_secure_token_iijpta_token_t, path),
 	NULL },
 
-	{ ngx_string("timelimit"),
+	{ ngx_string("end"),
 	NGX_CONF_TAKE1,
-	ngx_conf_set_sec_slot,
+        ngx_http_secure_token_conf_set_time_slot,
 	0,
-	offsetof(ngx_secure_token_iijpta_token_t, timelimit),
+	offsetof(ngx_secure_token_iijpta_token_t, end),
 	NULL },
 };
 
@@ -113,7 +113,7 @@ ngx_secure_token_iijpta_get_var(
 	}
 
 	now = ngx_time();
-	deadline = now + token->timelimit;
+	deadline = now + token->end.val;
 	deadline = htobe64(deadline);
 	memcpy(&in[CRC32_SIZE], &deadline, sizeof(deadline));
 	memcpy(&in[CRC32_SIZE + DEADLINE_SIZE], token->path.data, token->path.len);
@@ -168,7 +168,7 @@ ngx_secure_token_iijpta_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 		return NGX_CONF_ERROR;
 	}
 
-	token->timelimit = NGX_CONF_UNSET;
+	token->end.type = NGX_HTTP_SECURE_TOKEN_TIME_UNSET;
 
 	// parse the block
 	rv = ngx_http_secure_token_conf_block(
@@ -195,9 +195,10 @@ ngx_secure_token_iijpta_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 		}
 	}
 
-	if (token->timelimit == NGX_CONF_UNSET)
+	if (token->end.type == NGX_HTTP_SECURE_TOKEN_TIME_UNSET)
 	{
-		token->timelimit = 86400;
+		token->end.type = NGX_HTTP_SECURE_TOKEN_TIME_RELATIVE;
+		token->end.val  = 86400;
 	}
 
 	return NGX_CONF_OK;
