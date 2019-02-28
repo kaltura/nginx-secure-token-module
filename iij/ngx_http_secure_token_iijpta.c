@@ -101,7 +101,8 @@ ngx_secure_token_iijpta_get_var(
 	u_char* in;
 	size_t in_len  = CRC32_SIZE + DEADLINE_SIZE + token->path.len;
 	u_char *p;
-	uint8_t out[PATH_LIMIT * 2];
+	// in_len rounded up to block + one block for padding
+	uint8_t out[((in_len + (16 - 1)) / 16) + 16];
 	int out_len1, out_len2;
 	time_t now;
 	uint64_t deadline;
