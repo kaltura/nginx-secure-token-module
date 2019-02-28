@@ -8,7 +8,7 @@
 
 // constants
 #define CRC32_SIZE    4
-#define DEADLINE_SIZE 8
+#define EXPIRY_SIZE   8
 #define PATH_LIMIT    1024
 
 static char *ngx_conf_check_byte_len_bounds(ngx_conf_t *cf, void *post, void *data);
@@ -20,6 +20,11 @@ typedef struct {
 	ngx_str_t path;
 	ngx_secure_token_time_t end;
 } ngx_secure_token_iijpta_token_t;
+
+typedef struct {
+        u_char crc[CRC32_SIZE];
+        u_char expiry[EXPIRY_SIZE];
+} ngx_http_secure_token_iijpta_header_t;
 
 static ngx_conf_num_bounds_t ngx_http_secure_token_iijpta_key_bounds = {
 	ngx_conf_check_byte_len_bounds, 16, 16
@@ -99,13 +104,13 @@ ngx_secure_token_iijpta_get_var(
 	uint32_t crc;
 	ngx_secure_token_iijpta_token_t* token = (void*)data;
 	u_char* in;
-	size_t in_len  = CRC32_SIZE + DEADLINE_SIZE + token->path.len;
+	ngx_http_secure_token_iijpta_header_t *hdr;
+	size_t in_len  = sizeof(ngx_http_secure_token_iijpta_header_t) + token->path.len;
 	u_char *p;
 	// in_len rounded up to block + one block for padding
 	uint8_t out[((in_len + (16 - 1)) / 16) + 16];
 	int out_len1, out_len2;
-	time_t now;
-	uint64_t deadline;
+	uint64_t end;
 
 	in = ngx_pnalloc(r->pool, in_len);
 	if (in == NULL)
@@ -113,14 +118,12 @@ ngx_secure_token_iijpta_get_var(
 		return NGX_ERROR;
 	}
 
-	now = ngx_time();
-	deadline = now + token->end.val;
-	deadline = htobe64(deadline);
-	memcpy(&in[CRC32_SIZE], &deadline, sizeof(deadline));
-	memcpy(&in[CRC32_SIZE + DEADLINE_SIZE], token->path.data, token->path.len);
-	crc = ngx_crc32_long(&in[CRC32_SIZE], DEADLINE_SIZE + token->path.len);
-	crc = htobe32(crc);
-	memcpy(in, &crc, sizeof(crc));
+	hdr = (ngx_http_secure_token_iijpta_header_t *)in;
+	memcpy(&in[sizeof(hdr)], token->path.data, token->path.len);
+	end = htobe64(ngx_time() + token->end.val);
+	memcpy(hdr->expiry, &end, sizeof(end));
+	crc = htobe32(ngx_crc32_long(&in[CRC32_SIZE], EXPIRY_SIZE + token->path.len));
+	memcpy(hdr->crc, &crc, sizeof(crc));
 
 	ctx = EVP_CIPHER_CTX_new();
 	if (ctx == NULL) {
