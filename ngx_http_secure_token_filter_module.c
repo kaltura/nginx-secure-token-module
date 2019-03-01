@@ -15,7 +15,7 @@
 #include "chinacache/ngx_http_secure_token_chinacache.h"
 #include "cht/ngx_http_secure_token_cht.h"
 #include "cloudfront/ngx_http_secure_token_cloudfront.h"
-#include "iij/ngx_http_secure_token_iijpta.h"
+#include "iijpta/ngx_http_secure_token_iijpta.h"
 
 #define CACHE_CONTROL_FORMAT "%V, max-age=%T, max-stale=0"
 
@@ -155,7 +155,7 @@ static ngx_command_t  ngx_http_secure_token_commands[] = {
 #include "chinacache/ngx_http_secure_token_chinacache_commands.h"
 #include "cht/ngx_http_secure_token_cht_commands.h"
 #include "cloudfront/ngx_http_secure_token_cloudfront_commands.h"
-#include "iij/ngx_http_secure_token_iijpta_commands.h"
+#include "iijpta/ngx_http_secure_token_iijpta_commands.h"
 
 	{ ngx_string("secure_token_encrypt_uri"),
 	NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_FLAG,
