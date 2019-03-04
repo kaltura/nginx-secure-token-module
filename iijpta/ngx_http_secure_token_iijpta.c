@@ -71,8 +71,10 @@ ngx_conf_check_byte_len_bounds(ngx_conf_t *cf, void *post, void *data)
 	ngx_conf_num_bounds_t  *bounds = post;
 	ngx_str_t  *sp = data;
 
-	if (bounds->high == -1) {
-		if (sp->len >= (size_t)bounds->low) {
+	if (bounds->high == -1)
+	{
+		if (sp->len >= (size_t)bounds->low)
+		{
 			return NGX_CONF_OK;
 		}
 
@@ -83,7 +85,8 @@ ngx_conf_check_byte_len_bounds(ngx_conf_t *cf, void *post, void *data)
 		return NGX_CONF_ERROR;
 	}
 
-	if (sp->len >= (size_t)bounds->low && sp->len <= (size_t)bounds->high) {
+	if (sp->len >= (size_t)bounds->low && sp->len <= (size_t)bounds->high)
+	{
 		return NGX_CONF_OK;
 	}
 
@@ -127,27 +130,31 @@ ngx_secure_token_iijpta_get_var(
 	memcpy(hdr->crc, &crc, sizeof(crc));
 
 	ctx = EVP_CIPHER_CTX_new();
-	if (ctx == NULL) {
+	if (ctx == NULL)
+	{
 	    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
 			  "ngx_secure_token_iijpta_get_var: EVP_CIPHER_CTX_new failed");
 	    return NGX_ERROR;
 	}
 
-	if (!EVP_EncryptInit(ctx, EVP_aes_128_cbc(), token->key.data, token->iv.data)) {
+	if (!EVP_EncryptInit(ctx, EVP_aes_128_cbc(), token->key.data, token->iv.data))
+	{
 	    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
 			  "ngx_secure_token_iijpta_get_var: EVP_EncryptInit failed");
 	    goto error;
 	}
 
 	outp = out;
-	if (!EVP_EncryptUpdate(ctx, outp, &out_len, in, in_len)) {
+	if (!EVP_EncryptUpdate(ctx, outp, &out_len, in, in_len))
+	{
 	    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
 			  "ngx_secure_token_iijpta_get_var: EVP_EncryptUpdate failed");
 	    goto error;
 	}
 	outp += out_len;
 
-	if (!EVP_EncryptFinal(ctx, outp, &out_len)) {
+	if (!EVP_EncryptFinal(ctx, outp, &out_len))
+	{
 	    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
 			  "ngx_secure_token_iijpta_get_var: EVP_EncryptFinal failed");
 	    goto error;
