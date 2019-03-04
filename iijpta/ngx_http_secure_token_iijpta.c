@@ -11,8 +11,6 @@
 #define EXPIRY_SIZE   8
 #define PATH_LIMIT    1024
 
-static char *ngx_conf_check_byte_len_bounds(ngx_conf_t *cf, void *post, void *data);
-
 // typedefs
 typedef struct {
 	ngx_str_t key;
@@ -27,11 +25,11 @@ typedef struct {
 } ngx_http_secure_token_iijpta_header_t;
 
 static ngx_conf_num_bounds_t ngx_http_secure_token_iijpta_key_bounds = {
-	ngx_conf_check_byte_len_bounds, 16, 16
+	ngx_conf_check_str_len_bounds, 16, 16
 };
 
 static ngx_conf_num_bounds_t ngx_http_secure_token_iijpta_iv_bounds = {
-	ngx_conf_check_byte_len_bounds, 16, 16
+	ngx_conf_check_str_len_bounds, 16, 16
 };
 
 // globals
@@ -64,38 +62,6 @@ static ngx_command_t ngx_http_secure_token_iijpta_cmds[] = {
 	offsetof(ngx_secure_token_iijpta_token_t, end),
 	NULL },
 };
-
-static char *
-ngx_conf_check_byte_len_bounds(ngx_conf_t *cf, void *post, void *data)
-{
-	ngx_conf_num_bounds_t  *bounds = post;
-	ngx_str_t  *sp = data;
-
-	if (bounds->high == -1)
-	{
-		if (sp->len >= (size_t)bounds->low)
-		{
-			return NGX_CONF_OK;
-		}
-
-		ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-			"value must be equal to or greater than %i",
-			bounds->low);
-
-		return NGX_CONF_ERROR;
-	}
-
-	if (sp->len >= (size_t)bounds->low && sp->len <= (size_t)bounds->high)
-	{
-		return NGX_CONF_OK;
-	}
-
-	ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-		"value must be between %i byte and %i byte",
-		bounds->low, bounds->high);
-
-	return NGX_CONF_ERROR;
-}
 
 static ngx_int_t
 ngx_secure_token_iijpta_get_var(

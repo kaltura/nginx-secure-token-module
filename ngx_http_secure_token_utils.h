@@ -67,4 +67,9 @@ ngx_int_t  ngx_http_secure_token_escape_xml(
 	ngx_str_t* src,
 	ngx_str_t* dest);
 
+char* ngx_conf_check_str_len_bounds(
+        ngx_conf_t *cf,
+	void *post,
+	void *data);
+
 #endif // _NGX_HTTP_SECURE_TOKEN_UTILS_H_INCLUDED_
