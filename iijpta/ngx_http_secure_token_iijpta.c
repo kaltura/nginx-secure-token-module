@@ -90,7 +90,14 @@ ngx_secure_token_iijpta_get_var(
 
 	hdr = (ngx_http_secure_token_iijpta_header_t *)in;
 	memcpy(&in[sizeof(*hdr)], token->path.data, token->path.len);
-	end = htobe64(ngx_time() + token->end.val);
+	if (token->end.type == NGX_HTTP_SECURE_TOKEN_TIME_RELATIVE)
+	{
+	    end = htobe64(ngx_time() + token->end.val);
+	}
+	if (token->end.type == NGX_HTTP_SECURE_TOKEN_TIME_ABSOLUTE)
+	{
+	    end = htobe64(token->end.val);
+	}
 	memcpy(hdr->expiry, &end, sizeof(end));
 	crc = htobe32(ngx_crc32_long(&in[CRC32_SIZE], EXPIRY_SIZE + token->path.len));
 	memcpy(hdr->crc, &crc, sizeof(crc));
