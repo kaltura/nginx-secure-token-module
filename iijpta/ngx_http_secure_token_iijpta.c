@@ -72,14 +72,13 @@ ngx_secure_token_iijpta_get_var(
 	EVP_CIPHER_CTX *ctx;
 	uint32_t crc;
 	ngx_secure_token_iijpta_token_t* token = (void*)data;
-	u_char* in;
 	ngx_http_secure_token_iijpta_header_t *hdr;
-	size_t in_len  = sizeof(ngx_http_secure_token_iijpta_header_t) + token->path.len;
+	u_char *in;
+	size_t in_len = sizeof(ngx_http_secure_token_iijpta_header_t) + token->path.len;
 	u_char *p;
-	// in_len rounded up to block + one block for padding
-	uint8_t out[((in_len + (16 - 1)) / 16) + 16];
-	u_char *outp;
+	u_char *out;
 	int out_len;
+	u_char *outp;
 	uint64_t end;
 
 	in = ngx_pnalloc(r->pool, in_len);
@@ -117,6 +116,11 @@ ngx_secure_token_iijpta_get_var(
 	    goto error;
 	}
 
+	// in_len rounded up to block + one block for padding
+	out = ngx_pnalloc(r->pool, ((in_len + (16 - 1)) / 16) + 16);
+	if (out == NULL) {
+	    return NGX_ERROR;
+	}
 	outp = out;
 	if (!EVP_EncryptUpdate(ctx, outp, &out_len, in, in_len))
 	{
