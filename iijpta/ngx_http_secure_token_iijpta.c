@@ -72,8 +72,7 @@ ngx_secure_token_iijpta_get_var(
 	EVP_CIPHER_CTX *ctx;
 	uint32_t crc;
 	ngx_secure_token_iijpta_token_t* token = (void*)data;
-	ngx_http_secure_token_iijpta_header_t *hdr;
-	u_char *in;
+	ngx_http_secure_token_iijpta_header_t hdr;
 	size_t in_len = sizeof(ngx_http_secure_token_iijpta_header_t) + token->path.len;
 	u_char *p;
 	u_char *out;
@@ -81,14 +80,6 @@ ngx_secure_token_iijpta_get_var(
 	u_char *outp;
 	uint64_t end;
 
-	in = ngx_pnalloc(r->pool, in_len);
-	if (in == NULL)
-	{
-		return NGX_ERROR;
-	}
-
-	hdr = (ngx_http_secure_token_iijpta_header_t *)in;
-	memcpy(&in[sizeof(*hdr)], token->path.data, token->path.len);
 	if (token->end.type == NGX_HTTP_SECURE_TOKEN_TIME_RELATIVE)
 	{
 	    end = htobe64(ngx_time() + token->end.val);
@@ -97,9 +88,14 @@ ngx_secure_token_iijpta_get_var(
 	{
 	    end = htobe64(token->end.val);
 	}
-	memcpy(hdr->expiry, &end, sizeof(end));
-	crc = htobe32(ngx_crc32_long(&in[CRC32_SIZE], EXPIRY_SIZE + token->path.len));
-	memcpy(hdr->crc, &crc, sizeof(crc));
+
+	memcpy(&hdr.expiry, &end, sizeof(end));
+	ngx_crc32_init(crc);
+        ngx_crc32_update(&crc, (u_char *)&end, sizeof(end));
+        ngx_crc32_update(&crc, token->path.data, token->path.len);
+        ngx_crc32_final(crc);
+	crc = htobe32(crc);
+	memcpy(&hdr.crc, &crc, sizeof(crc));
 
 	ctx = EVP_CIPHER_CTX_new();
 	if (ctx == NULL)
@@ -117,15 +113,25 @@ ngx_secure_token_iijpta_get_var(
 	}
 
 	// in_len rounded up to block + one block for padding
-	out = ngx_pnalloc(r->pool, ((in_len + (16 - 1)) / 16) + 16);
+	out = ngx_pnalloc(r->pool,
+			  (((in_len + 15) / 16) * 16) + ((in_len % 16 == 0) ? 16 : 0));
 	if (out == NULL) {
 	    return NGX_ERROR;
 	}
+
 	outp = out;
-	if (!EVP_EncryptUpdate(ctx, outp, &out_len, in, in_len))
+        if (!EVP_EncryptUpdate(ctx, outp, &out_len, (void *)&hdr, sizeof(hdr)))
 	{
 	    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
-			  "ngx_secure_token_iijpta_get_var: EVP_EncryptUpdate failed");
+			  "ngx_secure_token_iijpta_get_var: EVP_EncryptUpdate failed (1)");
+	    goto error;
+	}
+	outp += out_len;
+
+	if (!EVP_EncryptUpdate(ctx, outp, &out_len, token->path.data, token->path.len))
+	{
+	    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+			  "ngx_secure_token_iijpta_get_var: EVP_EncryptUpdate failed (2)");
 	    goto error;
 	}
 	outp += out_len;
