@@ -99,7 +99,7 @@ ngx_secure_token_iijpta_get_var(
 	{
 	    end = htobe64(ngx_time() + token->end.val);
 	}
-	if (token->end.type == NGX_HTTP_SECURE_TOKEN_TIME_ABSOLUTE)
+	else if (token->end.type == NGX_HTTP_SECURE_TOKEN_TIME_ABSOLUTE)
 	{
 	    end = htobe64(token->end.val);
 	}
