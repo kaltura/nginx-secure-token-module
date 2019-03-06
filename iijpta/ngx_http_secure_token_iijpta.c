@@ -69,7 +69,7 @@ ngx_secure_token_iijpta_get_var(
 	ngx_http_variable_value_t *v,
 	uintptr_t data)
 {
-	EVP_CIPHER_CTX *ctx;
+        EVP_CIPHER_CTX *ctx = NULL;
 	uint32_t crc;
 	ngx_secure_token_iijpta_token_t* token = (void*)data;
 	ngx_http_secure_token_iijpta_header_t hdr;
@@ -92,7 +92,7 @@ ngx_secure_token_iijpta_get_var(
 	{
 	    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
 			  "ngx_secure_token_iijpta_get_var: acl is too long for the iijpta token");
-	    goto error;
+	    return NGX_ERROR;
 	}
 
 	if (token->end.type == NGX_HTTP_SECURE_TOKEN_TIME_RELATIVE)
