@@ -15,7 +15,7 @@
 typedef struct {
 	ngx_str_t key;
 	ngx_str_t iv;
-	ngx_str_t path;
+        ngx_http_complex_value_t *acl;
 	ngx_secure_token_time_t end;
 } ngx_secure_token_iijpta_token_t;
 
@@ -48,11 +48,11 @@ static ngx_command_t ngx_http_secure_token_iijpta_cmds[] = {
 	offsetof(ngx_secure_token_iijpta_token_t, iv),
 	&ngx_http_secure_token_iijpta_iv_bounds },
 
-	{ ngx_string("path"),
+	{ ngx_string("acl"),
 	NGX_CONF_TAKE1,
-	ngx_conf_set_str_slot,
+        ngx_http_set_complex_value_slot,
 	0,
-	offsetof(ngx_secure_token_iijpta_token_t, path),
+	offsetof(ngx_secure_token_iijpta_token_t, acl),
 	NULL },
 
 	{ ngx_string("end"),
@@ -73,12 +73,27 @@ ngx_secure_token_iijpta_get_var(
 	uint32_t crc;
 	ngx_secure_token_iijpta_token_t* token = (void*)data;
 	ngx_http_secure_token_iijpta_header_t hdr;
-	size_t in_len = sizeof(ngx_http_secure_token_iijpta_header_t) + token->path.len;
+	size_t in_len;
 	u_char *p;
 	u_char *out;
 	int out_len;
 	u_char *outp;
 	uint64_t end;
+	ngx_str_t acl;
+	ngx_int_t rc;
+
+	rc = ngx_http_secure_token_get_acl_iijpta(r, token->acl, &acl);
+	if (rc != NGX_OK)
+	{
+	    return rc;
+	}
+
+	if (acl.len > PATH_LIMIT)
+	{
+	    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+			  "ngx_secure_token_iijpta_get_var: acl is too long for the iijpta token");
+	    goto error;
+	}
 
 	if (token->end.type == NGX_HTTP_SECURE_TOKEN_TIME_RELATIVE)
 	{
@@ -92,7 +107,7 @@ ngx_secure_token_iijpta_get_var(
 	memcpy(&hdr.expiry, &end, sizeof(end));
 	ngx_crc32_init(crc);
         ngx_crc32_update(&crc, (u_char *)&end, sizeof(end));
-        ngx_crc32_update(&crc, token->path.data, token->path.len);
+        ngx_crc32_update(&crc, acl.data, acl.len);
         ngx_crc32_final(crc);
 	crc = htobe32(crc);
 	memcpy(&hdr.crc, &crc, sizeof(crc));
@@ -112,6 +127,7 @@ ngx_secure_token_iijpta_get_var(
 	    goto error;
 	}
 
+	in_len = sizeof(ngx_http_secure_token_iijpta_header_t) + acl.len;
 	// in_len rounded up to block + one block for padding
 	out = ngx_pnalloc(r->pool,
 			  (((in_len + 15) / 16) * 16) + ((in_len % 16 == 0) ? 16 : 0));
@@ -128,7 +144,7 @@ ngx_secure_token_iijpta_get_var(
 	}
 	outp += out_len;
 
-	if (!EVP_EncryptUpdate(ctx, outp, &out_len, token->path.data, token->path.len))
+	if (!EVP_EncryptUpdate(ctx, outp, &out_len, acl.data, acl.len))
 	{
 	    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
 			  "ngx_secure_token_iijpta_get_var: EVP_EncryptUpdate failed (2)");
@@ -195,20 +211,6 @@ ngx_secure_token_iijpta_block(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 	if (rv != NGX_CONF_OK)
 	{
 		return rv;
-	}
-
-	if (token->path.data == NULL)
-	{
-		ngx_str_set(&token->path, "/*");
-	}
-	else
-	{
-		if (token->path.len > PATH_LIMIT)
-		{
-			ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-					   "\"path\" is too long for iijpta tokens");
-			return NGX_CONF_ERROR;
-		}
 	}
 
 	if (token->end.type == NGX_HTTP_SECURE_TOKEN_TIME_UNSET)
