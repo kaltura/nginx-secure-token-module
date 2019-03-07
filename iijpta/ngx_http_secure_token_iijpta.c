@@ -116,14 +116,11 @@ ngx_secure_token_iijpta_get_var(
 	    return NGX_ERROR;
 	}
 
-	if (token->end.type == NGX_HTTP_SECURE_TOKEN_TIME_RELATIVE)
-	{
-	    end = htobe64(ngx_time() + token->end.val);
+	end = token->end.val;
+	if (token->end.type == NGX_HTTP_SECURE_TOKEN_TIME_RELATIVE) {
+	    end += ngx_time();
 	}
-	else if (token->end.type == NGX_HTTP_SECURE_TOKEN_TIME_ABSOLUTE)
-	{
-	    end = htobe64(token->end.val);
-	}
+	end = htobe64(end);
 
 	memcpy(&hdr.expiry, &end, sizeof(end));
 	ngx_crc32_init(crc);
