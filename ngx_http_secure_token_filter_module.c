@@ -15,10 +15,10 @@
 #include "chinacache/ngx_http_secure_token_chinacache.h"
 #include "cht/ngx_http_secure_token_cht.h"
 #include "cloudfront/ngx_http_secure_token_cloudfront.h"
+#include "iijpta/ngx_http_secure_token_iijpta.h"
 
 #define CACHE_CONTROL_FORMAT "%V, max-age=%T, max-stale=0"
 
-static char *ngx_conf_check_str_len_bounds(ngx_conf_t *cf, void *post, void *data);
 static void *ngx_http_secure_token_create_loc_conf(ngx_conf_t *cf);
 static char *ngx_http_secure_token_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child);
 static ngx_int_t ngx_http_secure_token_add_variables(ngx_conf_t *cf);
@@ -154,6 +154,7 @@ static ngx_command_t  ngx_http_secure_token_commands[] = {
 #include "chinacache/ngx_http_secure_token_chinacache_commands.h"
 #include "cht/ngx_http_secure_token_cht_commands.h"
 #include "cloudfront/ngx_http_secure_token_cloudfront_commands.h"
+#include "iijpta/ngx_http_secure_token_iijpta_commands.h"
 
 	{ ngx_string("secure_token_encrypt_uri"),
 	NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_FLAG,
@@ -223,37 +224,6 @@ ngx_module_t  ngx_http_secure_token_filter_module = {
 };
 
 static ngx_http_output_header_filter_pt  ngx_http_next_header_filter;
-
-
-// Note: copy of ngx_conf_check_num_bounds adjusted for string length validation
-static char *
-ngx_conf_check_str_len_bounds(ngx_conf_t *cf, void *post, void *data)
-{
-	ngx_conf_num_bounds_t  *bounds = post;
-	ngx_str_t  *sp = data;
-
-	if (bounds->high == -1) {
-		if (sp->len >= (size_t)bounds->low) {
-			return NGX_CONF_OK;
-		}
-
-		ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-			"value must be equal to or greater than %i",
-			bounds->low);
-
-		return NGX_CONF_ERROR;
-	}
-
-	if (sp->len >= (size_t)bounds->low && sp->len <= (size_t)bounds->high) {
-		return NGX_CONF_OK;
-	}
-
-	ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-		"value must be between %i and %i",
-		bounds->low, bounds->high);
-
-	return NGX_CONF_ERROR;
-}
 
 static void *
 ngx_http_secure_token_create_loc_conf(ngx_conf_t *cf)
