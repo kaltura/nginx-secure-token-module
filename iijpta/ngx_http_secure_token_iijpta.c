@@ -150,7 +150,7 @@ ngx_secure_token_iijpta_get_var(
 	out = ngx_pnalloc(r->pool, (in_len & ~0xf) + 0x10);
 	if (out == NULL)
 	{
-	    return NGX_ERROR;
+	    goto error;
 	}
 
 	outp = out;
