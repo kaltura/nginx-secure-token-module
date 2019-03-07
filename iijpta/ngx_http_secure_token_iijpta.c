@@ -150,8 +150,7 @@ ngx_secure_token_iijpta_get_var(
 
 	in_len = sizeof(ngx_http_secure_token_iijpta_header_t) + acl.len;
 	// in_len rounded up to block + one block for padding
-	out = ngx_pnalloc(r->pool,
-			  (((in_len + 15) / 16) * 16) + ((in_len % 16 == 0) ? 16 : 0));
+	out = ngx_pnalloc(r->pool, (in_len & ~0xf) + 0x10);
 	if (out == NULL)
 	{
 	    return NGX_ERROR;
