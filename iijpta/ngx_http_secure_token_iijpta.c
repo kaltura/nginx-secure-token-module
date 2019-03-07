@@ -117,7 +117,8 @@ ngx_secure_token_iijpta_get_var(
 	}
 
 	end = token->end.val;
-	if (token->end.type == NGX_HTTP_SECURE_TOKEN_TIME_RELATIVE) {
+	if (token->end.type == NGX_HTTP_SECURE_TOKEN_TIME_RELATIVE)
+	{
 	    end += ngx_time();
 	}
 	end = htobe64(end);
