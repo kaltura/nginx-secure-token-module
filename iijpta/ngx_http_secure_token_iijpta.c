@@ -131,7 +131,8 @@ ngx_secure_token_iijpta_get_var(
 	// in_len rounded up to block + one block for padding
 	out = ngx_pnalloc(r->pool,
 			  (((in_len + 15) / 16) * 16) + ((in_len % 16 == 0) ? 16 : 0));
-	if (out == NULL) {
+	if (out == NULL)
+	{
 	    return NGX_ERROR;
 	}
 
