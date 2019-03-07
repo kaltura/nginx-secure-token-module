@@ -162,7 +162,6 @@ ngx_secure_token_iijpta_get_var(
 	outp += out_len;
 
 	out_len = outp - out;
-	/* sizeof("pta=") returns 5, includes null termination. */
 	p = ngx_pnalloc(r->pool, sizeof("pta=") + (out_len * 2));
 	if (p == NULL)
 	{
