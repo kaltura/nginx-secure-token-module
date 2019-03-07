@@ -77,8 +77,7 @@ ngx_http_secure_token_get_acl_iijpta(ngx_http_request_t *r, ngx_http_complex_val
 	else
 	{
 		// the default is '/*'
-	        acl->data = (u_char *)"/*";
-		acl->len = sizeof("/*");
+                ngx_str_set(acl, "/*");
 	}
 
 	return NGX_OK;
