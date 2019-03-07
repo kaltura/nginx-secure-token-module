@@ -64,6 +64,27 @@ static ngx_command_t ngx_http_secure_token_iijpta_cmds[] = {
 };
 
 static ngx_int_t
+ngx_http_secure_token_get_acl_iijpta(ngx_http_request_t *r, ngx_http_complex_value_t *acl_conf, ngx_str_t* acl)
+{
+	// get the acl
+	if (acl_conf != NULL)
+	{
+		if (ngx_http_complex_value(r, acl_conf, acl) != NGX_OK)
+		{
+			return NGX_ERROR;
+		}
+	}
+	else
+	{
+		// the default is '/*'
+	        acl->data = (u_char *)"/*";
+		acl->len = sizeof("/*");
+	}
+
+	return NGX_OK;
+}
+
+static ngx_int_t
 ngx_secure_token_iijpta_get_var(
 	ngx_http_request_t *r,
 	ngx_http_variable_value_t *v,

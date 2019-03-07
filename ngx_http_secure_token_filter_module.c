@@ -19,7 +19,6 @@
 
 #define CACHE_CONTROL_FORMAT "%V, max-age=%T, max-stale=0"
 
-//static char *ngx_conf_check_str_len_bounds(ngx_conf_t *cf, void *post, void *data);
 static void *ngx_http_secure_token_create_loc_conf(ngx_conf_t *cf);
 static char *ngx_http_secure_token_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child);
 static ngx_int_t ngx_http_secure_token_add_variables(ngx_conf_t *cf);
@@ -530,28 +529,6 @@ ngx_http_secure_token_get_acl(ngx_http_request_t *r, ngx_http_complex_value_t *a
 
 	return NGX_OK;
 }
-
-ngx_int_t
-ngx_http_secure_token_get_acl_iijpta(ngx_http_request_t *r, ngx_http_complex_value_t *acl_conf, ngx_str_t* acl)
-{
-	// get the acl
-	if (acl_conf != NULL)
-	{
-		if (ngx_http_complex_value(r, acl_conf, acl) != NGX_OK)
-		{
-			return NGX_ERROR;
-		}
-	}
-	else
-	{
-		// the default is '/*'
-	        acl->data = (u_char *)"/*";
-		acl->len = sizeof("/*");
-	}
-
-	return NGX_OK;
-}
-
 
 static void *
 ngx_http_secure_token_memrchr(const u_char *s, int c, size_t n)
