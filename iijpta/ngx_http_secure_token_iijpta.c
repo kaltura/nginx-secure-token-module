@@ -138,10 +138,10 @@ ngx_secure_token_iijpta_get_var(
 		return NGX_ERROR;
 	}
 
-	if (!EVP_EncryptInit(ctx, EVP_aes_128_cbc(), token->key.data, token->iv.data))
+	if (!EVP_EncryptInit_ex(ctx, EVP_aes_128_cbc(), NULL, token->key.data, token->iv.data))
 	{
 		ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
-			"ngx_secure_token_iijpta_get_var: EVP_EncryptInit failed");
+			"ngx_secure_token_iijpta_get_var: EVP_EncryptInit_ex failed");
 		goto error;
 	}
 
@@ -170,10 +170,10 @@ ngx_secure_token_iijpta_get_var(
 	}
 	outp += out_len;
 
-	if (!EVP_EncryptFinal(ctx, outp, &out_len))
+	if (!EVP_EncryptFinal_ex(ctx, outp, &out_len))
 	{
 		ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
-			"ngx_secure_token_iijpta_get_var: EVP_EncryptFinal failed");
+			"ngx_secure_token_iijpta_get_var: EVP_EncryptFinal_ex failed");
 		goto error;
 	}
 	outp += out_len;
