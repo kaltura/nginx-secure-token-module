@@ -6,6 +6,21 @@
 
 #include <openssl/evp.h>
 
+// macros
+#define set_be32(p, dw)						\
+	{										\
+	((u_char*)p)[0] = ((dw) >> 24) & 0xFF;	\
+	((u_char*)p)[1] = ((dw) >> 16) & 0xFF;	\
+	((u_char*)p)[2] = ((dw) >> 8) & 0xFF;	\
+	((u_char*)p)[3] = (dw)& 0xFF;			\
+	}
+
+#define set_be64(p, qw)						\
+	{										\
+	set_be32(p, (qw) >> 32);				\
+	set_be32(p + 4, (qw));					\
+	}
+
 // constants
 #define CRC32_SIZE    4
 #define EXPIRY_SIZE   8
@@ -120,15 +135,13 @@ ngx_secure_token_iijpta_get_var(
 	{
 		end += ngx_time();
 	}
-	end = htobe64(end);
+	set_be64(hdr.expiry, end);
 
-	memcpy(&hdr.expiry, &end, sizeof(end));
 	ngx_crc32_init(crc);
 	ngx_crc32_update(&crc, (u_char *)&end, sizeof(end));
 	ngx_crc32_update(&crc, acl.data, acl.len);
 	ngx_crc32_final(crc);
-	crc = htobe32(crc);
-	memcpy(&hdr.crc, &crc, sizeof(crc));
+	set_be32(hdr.crc, crc);
 
 	ctx = EVP_CIPHER_CTX_new();
 	if (ctx == NULL)
