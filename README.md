@@ -335,15 +335,19 @@ http {
 	server {
 	  # serve flavor HLS
           location ~ ^/hls/p/\d+/(sp/\d+/)?serveFlavor/ {
-              vod                             hls;
-  
-              vod_bootstrap_segment_durations     2000;
-              vod_bootstrap_segment_durations     2000;
-              vod_bootstrap_segment_durations     2000;
-              vod_bootstrap_segment_durations     4000;
-  
-              secure_token_types application/vnd.apple.mpegurl application/dash+xml text/xml;
-              secure_token $token;
+	    vod                             hls;
+
+	    vod_bootstrap_segment_durations     2000;
+	    vod_bootstrap_segment_durations     2000;
+	    vod_bootstrap_segment_durations     2000;
+	    vod_bootstrap_segment_durations     4000;
+
+	    more_set_headers 'Access-Control-Allow-Headers: Origin,Range,Accept-Encoding,Referer,Cache-Control';
+	    more_set_headers 'Access-Control-Expose-Headers: Server,Content-Length,Content-Range,Date';
+	    more_set_headers 'Access-Control-Allow-Methods: GET, HEAD, OPTIONS';
+	    more_set_headers 'Access-Control-Allow-Origin: *';
+	    secure_token_types application/vnd.apple.mpegurl application/dash+xml text/xml;
+	    secure_token $token;
           }
 	
 	}
