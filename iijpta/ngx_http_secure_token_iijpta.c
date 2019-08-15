@@ -138,7 +138,7 @@ ngx_secure_token_iijpta_get_var(
 	set_be64(hdr.expiry, end);
 
 	ngx_crc32_init(crc);
-	ngx_crc32_update(&crc, (u_char *)&end, sizeof(end));
+	ngx_crc32_update(&crc, hdr.expiry, EXPIRY_SIZE);
 	ngx_crc32_update(&crc, acl.data, acl.len);
 	ngx_crc32_final(crc);
 	set_be32(hdr.crc, crc);
