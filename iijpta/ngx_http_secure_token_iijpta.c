@@ -25,10 +25,7 @@
 #define CRC32_SIZE    4
 #define EXPIRY_SIZE   8
 #define PATH_LIMIT    1024
-#define SEMICOLON_SPC 2
-#define EXPIRES_SIZE  35 //e.g. Expires=Thu, 31-Dec-19 23:59:59 GMT
-#define MAX_AGE_SIZE  18 //e.g. Max-Age=1577804399
-
+#define COOKIE_ATTR_SIZE (sizeof("; Expires=Thu, 31-Dec-2019 23:59:59 GMT; Max-Age=") - 1 + NGX_TIME_T_LEN)
 
 // typedefs
 typedef struct {
@@ -114,6 +111,7 @@ ngx_secure_token_iijpta_get_var(
 	ngx_http_secure_token_iijpta_header_t hdr;
 	ngx_http_secure_token_loc_conf_t *conf;
 	size_t in_len;
+	size_t size;
 	u_char *p;
 	u_char *out;
 	int out_len;
@@ -199,34 +197,29 @@ ngx_secure_token_iijpta_get_var(
 	outp += out_len;
 	out_len = outp - out;
 
+	size = sizeof("pta=") + (out_len * 2);
 	if (conf->avoid_cookies == 0)
 	{
-	        p = ngx_pnalloc(r->pool, sizeof("pta=") + (out_len * 2) +
-				SEMICOLON_SPC + EXPIRES_SIZE +
-				SEMICOLON_SPC + MAX_AGE_SIZE);
-		if (p == NULL)
-		{
-		    goto error;
-		}
+	    size += COOKIE_ATTR_SIZE;
+	}
 
-		v->data = p;
-		p = ngx_copy(p, "pta=", sizeof("pta=") - 1);
-		p = ngx_hex_dump(p, out, out_len);
+	p = ngx_pnalloc(r->pool, sizeof("pta=") + (out_len * 2));
+	if (p == NULL)
+	{
+	    goto error;
+	}
+	v->data = p;
+	p = ngx_copy(p, "pta=", sizeof("pta=") - 1);
+	p = ngx_hex_dump(p, out, out_len);
+
+	if (conf->avoid_cookies == 0)
+	{
 		p = ngx_sprintf(p, "; Expires=");
 		p = ngx_http_cookie_time(p, end);
 		p = ngx_sprintf(p, "; Max-Age=%T", end - ngx_time());
 	}
 	else
 	{
-	        p = ngx_pnalloc(r->pool, sizeof("pta=") + (out_len * 2));
-		if (p == NULL)
-		{
-		        goto error;
-		}
-
-		v->data = p;
-		p = ngx_copy(p, "pta=", sizeof("pta=") - 1);
-		p = ngx_hex_dump(p, out, out_len);
 		*p = '\0';
 	}
 
