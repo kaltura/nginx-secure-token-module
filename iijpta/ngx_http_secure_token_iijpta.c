@@ -200,13 +200,13 @@ ngx_secure_token_iijpta_get_var(
 	size = sizeof("pta=") + (out_len * 2);
 	if (conf->avoid_cookies == 0)
 	{
-	    size += COOKIE_ATTR_SIZE;
+	        size += COOKIE_ATTR_SIZE;
 	}
 
 	p = ngx_pnalloc(r->pool, size);
 	if (p == NULL)
 	{
-	    goto error;
+	        goto error;
 	}
 	v->data = p;
 	p = ngx_copy(p, "pta=", sizeof("pta=") - 1);
@@ -214,7 +214,7 @@ ngx_secure_token_iijpta_get_var(
 
 	if (conf->avoid_cookies == 0)
 	{
-		p = ngx_sprintf(p, "; Expires=");
+	        p = ngx_copy(p, "; Expires=", sizeof("; Expires=")  - 1);
 		p = ngx_http_cookie_time(p, end);
 		p = ngx_sprintf(p, "; Max-Age=%T", end - ngx_time());
 	}
