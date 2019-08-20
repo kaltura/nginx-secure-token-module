@@ -203,7 +203,7 @@ ngx_secure_token_iijpta_get_var(
 	    size += COOKIE_ATTR_SIZE;
 	}
 
-	p = ngx_pnalloc(r->pool, sizeof("pta=") + (out_len * 2));
+	p = ngx_pnalloc(r->pool, size);
 	if (p == NULL)
 	{
 	    goto error;
@@ -218,10 +218,8 @@ ngx_secure_token_iijpta_get_var(
 		p = ngx_http_cookie_time(p, end);
 		p = ngx_sprintf(p, "; Max-Age=%T", end - ngx_time());
 	}
-	else
-	{
-		*p = '\0';
-	}
+
+	*p = '\0';
 
 	v->len = p - v->data;
 	v->valid = 1;
