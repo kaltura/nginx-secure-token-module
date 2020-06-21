@@ -12,6 +12,7 @@
 #include "ngx_http_secure_token_xml.h"
 
 #include "akamai/ngx_http_secure_token_akamai.h"
+#include "cdnvideo/ngx_http_secure_token_cdnvideo.h"
 #include "chinacache/ngx_http_secure_token_chinacache.h"
 #include "cht/ngx_http_secure_token_cht.h"
 #include "cloudfront/ngx_http_secure_token_cloudfront.h"
@@ -30,6 +31,7 @@ static ngx_str_t  ngx_http_secure_token_default_types[] = {
 };
 
 static ngx_str_t  ngx_http_baseuri = ngx_string("secure_token_baseuri");
+static ngx_str_t  ngx_http_baseuri_noslash = ngx_string("secure_token_baseuri_noslash");
 static ngx_str_t  ngx_http_baseuri_comma = ngx_string("secure_token_baseuri_comma");
 
 static ngx_conf_num_bounds_t  ngx_http_secure_token_encrypt_uri_key_bounds = {
@@ -151,6 +153,7 @@ static ngx_command_t  ngx_http_secure_token_commands[] = {
 	NULL },
 
 #include "akamai/ngx_http_secure_token_akamai_commands.h"
+#include "cdnvideo/ngx_http_secure_token_cdnvideo_commands.h"
 #include "chinacache/ngx_http_secure_token_chinacache_commands.h"
 #include "cht/ngx_http_secure_token_cht_commands.h"
 #include "cloudfront/ngx_http_secure_token_cloudfront_commands.h"
@@ -733,6 +736,27 @@ ngx_http_secure_token_set_baseuri(ngx_http_request_t *r, ngx_http_variable_value
 }
 
 static ngx_int_t
+ngx_http_secure_token_set_baseuri_noslash(ngx_http_request_t *r, ngx_http_variable_value_t *v, uintptr_t data)
+{
+	u_char* last_slash_pos;
+
+	last_slash_pos = ngx_http_secure_token_memrchr(r->uri.data, '/', r->uri.len);
+	if (last_slash_pos == NULL)
+	{
+		return NGX_ERROR;
+	}
+
+	v->valid = 1;
+	v->no_cacheable = 0;
+	v->not_found = 0;
+
+	v->len = last_slash_pos - r->uri.data;
+	v->data = r->uri.data;
+
+	return NGX_OK;
+}
+
+static ngx_int_t
 ngx_http_secure_token_set_baseuri_comma(ngx_http_request_t *r, ngx_http_variable_value_t *v, uintptr_t data)
 {
 	u_char* last_slash_pos;
@@ -774,6 +798,13 @@ ngx_http_secure_token_add_variables(ngx_conf_t *cf)
 	}
 
 	var->get_handler = ngx_http_secure_token_set_baseuri;
+
+	var = ngx_http_add_variable(cf, &ngx_http_baseuri_noslash, NGX_HTTP_VAR_CHANGEABLE);
+	if (var == NULL) {
+		return NGX_ERROR;
+	}
+
+	var->get_handler = ngx_http_secure_token_set_baseuri_noslash;
 
 	var = ngx_http_add_variable(cf, &ngx_http_baseuri_comma, NGX_HTTP_VAR_CHANGEABLE);
 	if (var == NULL) {
