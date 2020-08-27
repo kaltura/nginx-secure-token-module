@@ -291,7 +291,7 @@ ngx_http_secure_token_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
 	ngx_conf_merge_value(conf->avoid_cookies, prev->avoid_cookies, 1);
 	
 	ngx_conf_merge_ptr_value(conf->filename_prefixes, prev->filename_prefixes, NULL);
-    
+
 	ngx_conf_merge_sec_value(conf->expires_time, prev->expires_time, NGX_CONF_UNSET);
 	ngx_conf_merge_sec_value(conf->cookie_token_expires_time, prev->cookie_token_expires_time, NGX_CONF_UNSET);
 	ngx_conf_merge_sec_value(conf->query_token_expires_time, prev->query_token_expires_time, NGX_CONF_UNSET);
@@ -812,6 +812,10 @@ ngx_http_secure_token_add_variables(ngx_conf_t *cf)
 	}
 
 	var->get_handler = ngx_http_secure_token_set_baseuri_comma;
+
+	if (ngx_http_secure_token_encrypt_uri_add_variables(cf) != NGX_OK) {
+		return NGX_ERROR;
+	}
 
 	return NGX_OK;
 }

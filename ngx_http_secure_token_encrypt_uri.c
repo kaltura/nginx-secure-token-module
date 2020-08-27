@@ -5,6 +5,11 @@
 #include <openssl/evp.h>
 #include <ngx_md5.h>
 
+
+static ngx_str_t ngx_http_secure_token_original_uri = ngx_string("secure_token_original_uri");
+static ngx_uint_t ngx_http_secure_token_original_uri_index;
+
+
 // Note: a modified version of ngx_strstrn that gets ngx_str_t's
 static u_char *
 ngx_http_secure_token_strstr(ngx_str_t* haystack, ngx_str_t* needle)
@@ -195,6 +200,7 @@ ngx_int_t
 ngx_http_secure_token_decrypt_uri(ngx_http_request_t *r)
 {
 	ngx_http_secure_token_loc_conf_t *conf;
+	ngx_http_variable_value_t *vv;
 	ngx_str_t encrypt_uri_part;
 	ngx_str_t base64_decoded;
 	ngx_str_t decrypted;
@@ -292,6 +298,16 @@ ngx_http_secure_token_decrypt_uri(ngx_http_request_t *r)
 			"ngx_http_secure_token_decrypt_uri: invalid hash");
 		return NGX_HTTP_FORBIDDEN;
 	}
+
+	// save the original uri in var
+	vv = &r->variables[ngx_http_secure_token_original_uri_index];
+
+	vv->valid = 1;
+	vv->not_found = 0;
+	vv->no_cacheable = 0;
+
+	vv->data = r->uri.data;
+	vv->len = r->uri.len;
 
 	// update the uri
 	p = ngx_copy(new_uri.data, r->uri.data, uri_prefix_len);
@@ -406,6 +422,43 @@ ngx_http_secure_token_encrypt_uri(ngx_http_request_t* r, ngx_str_t* src, ngx_str
 
 	// free temporary buffer
 	ngx_pfree(r->pool, encrypted.data);
+
+	return NGX_OK;
+}
+
+static ngx_int_t
+ngx_http_secure_token_encrypt_uri_variable(ngx_http_request_t *r,
+	ngx_http_variable_value_t *v, uintptr_t data)
+{
+	ngx_log_debug0(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+		"encrypt uri variable");
+
+	v->not_found = 1;
+
+	return NGX_OK;
+}
+
+ngx_int_t
+ngx_http_secure_token_encrypt_uri_add_variables(ngx_conf_t *cf)
+{
+	ngx_int_t             n;
+	ngx_http_variable_t  *v;
+
+	v = ngx_http_add_variable(cf, &ngx_http_secure_token_original_uri, 0);
+	if (v == NULL) {
+		return NGX_ERROR;
+	}
+
+	n = ngx_http_get_variable_index(cf, &ngx_http_secure_token_original_uri);
+	if (n == NGX_ERROR) {
+		return NGX_ERROR;
+	}
+
+	if (v->get_handler == NULL) {
+		v->get_handler = ngx_http_secure_token_encrypt_uri_variable;
+	}
+
+	ngx_http_secure_token_original_uri_index = n;
 
 	return NGX_OK;
 }

@@ -441,6 +441,8 @@ The module adds the following nginx variables:
 	the value is truncated up to the comma position.
 	For exmaple, if `$uri` is /a/b/c.htm then `$secure_token_baseuri_comma` will be /a/b/; 
 	if `$uri` is /a/b,c/d.htm then `$secure_token_baseuri_comma` will be /a/b.
+* `$secure_token_original_uri` - contains the original (encrypted) uri when using uri encryption.
+	Note that the built in `$uri` variable contains the modified (decrypted) uri in this case.
 
 ## Copyright & License
 
