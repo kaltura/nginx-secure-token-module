@@ -212,16 +212,14 @@ ngx_http_secure_token_url_state_machine(
 		switch (ctx->state)
 		{
 		case STATE_URL_SCHEME:
-			if (ch == ':')
+			if (ch == scheme_delimeter[ctx->scheme_delim_pos])
 			{
-				if (!ngx_http_secure_token_is_http_scheme(ctx))
+				if (ch == ':' && !ngx_http_secure_token_is_http_scheme(ctx))
 				{
 					ctx->state = STATE_URL_NON_HTTP;
 					break;
 				}
-			}
-			if (ch == scheme_delimeter[ctx->scheme_delim_pos])
-			{
+
 				ctx->scheme_delim_pos++;
 				if (ctx->scheme_delim_pos >= sizeof(scheme_delimeter) - 1)
 				{
