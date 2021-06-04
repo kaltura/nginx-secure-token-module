@@ -140,11 +140,6 @@ ngx_flag_t
 ngx_http_secure_token_is_http_scheme(
 	ngx_http_secure_token_base_ctx_t* ctx)
 {
-	if (ctx->scheme_delim_pos < sizeof(scheme_delimeter) - 1)
-	{
-		return 1;		// no scheme in the URL, derives the scheme of the manifest
-	}
-
 	switch (ctx->scheme_pos)
 	{
 	case 4:
@@ -189,8 +184,7 @@ ngx_http_secure_token_url_state_machine(
 				}
 			}
 
-			if (ctx->tokenize && 
-				ngx_http_secure_token_is_http_scheme(ctx))
+			if (ctx->tokenize && ctx->state != STATE_URL_NON_HTTP)
 			{
 				if (ctx->state == STATE_URL_QUERY)
 				{
@@ -220,6 +214,12 @@ ngx_http_secure_token_url_state_machine(
 		case STATE_URL_SCHEME:
 			if (ch == scheme_delimeter[ctx->scheme_delim_pos])
 			{
+				if (ch == ':' && !ngx_http_secure_token_is_http_scheme(ctx))
+				{
+					ctx->state = STATE_URL_NON_HTTP;
+					break;
+				}
+
 				ctx->scheme_delim_pos++;
 				if (ctx->scheme_delim_pos >= sizeof(scheme_delimeter) - 1)
 				{
