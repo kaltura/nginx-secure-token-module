@@ -153,7 +153,6 @@ ngx_http_secure_token_is_http_scheme(
 	}
 }
 
-
 ngx_int_t
 ngx_http_secure_token_url_state_machine(
 	ngx_http_request_t* r,
