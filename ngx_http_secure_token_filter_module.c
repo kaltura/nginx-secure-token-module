@@ -12,6 +12,7 @@
 #include "ngx_http_secure_token_xml.h"
 
 #include "akamai/ngx_http_secure_token_akamai.h"
+#include "broadpeak/ngx_http_secure_token_broadpeak.h"
 #include "cdnvideo/ngx_http_secure_token_cdnvideo.h"
 #include "chinacache/ngx_http_secure_token_chinacache.h"
 #include "cht/ngx_http_secure_token_cht.h"
@@ -153,6 +154,7 @@ static ngx_command_t  ngx_http_secure_token_commands[] = {
 	NULL },
 
 #include "akamai/ngx_http_secure_token_akamai_commands.h"
+#include "broadpeak/ngx_http_secure_token_broadpeak_commands.h"
 #include "cdnvideo/ngx_http_secure_token_cdnvideo_commands.h"
 #include "chinacache/ngx_http_secure_token_chinacache_commands.h"
 #include "cht/ngx_http_secure_token_cht_commands.h"
