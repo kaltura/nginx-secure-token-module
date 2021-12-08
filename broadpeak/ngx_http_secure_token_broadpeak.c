@@ -13,6 +13,7 @@ typedef struct {
 	ngx_secure_token_time_t end;
 	ngx_http_complex_value_t* session_start;
 	ngx_http_complex_value_t* session_end;
+	ngx_http_complex_value_t* additional_querylist;
 } ngx_secure_token_broadpeak_token_t;
 
 
@@ -65,6 +66,13 @@ static ngx_command_t ngx_http_secure_token_broadpeak_cmds[] = {
 	ngx_http_set_complex_value_slot,
 	0,
 	offsetof(ngx_secure_token_broadpeak_token_t, session_end),
+	NULL },
+
+	{ ngx_string("additional_querylist"),
+	NGX_CONF_TAKE1,
+	ngx_http_set_complex_value_slot,
+	0,
+	offsetof(ngx_secure_token_broadpeak_token_t, additional_querylist),
 	NULL },
 };
 
@@ -256,9 +264,10 @@ ngx_secure_token_broadpeak_get_var(
 	uintptr_t data)
 {
 	ngx_secure_token_broadpeak_token_t* token = (void*)data;
-	ngx_md5_t md5;
+	ngx_str_t additional_querylist;
 	ngx_str_t acl;
 	ngx_str_t key;
+	ngx_md5_t md5;
 	ngx_int_t rc;
 	uint64_t start_end;
 	size_t result_size;
@@ -292,6 +301,19 @@ ngx_secure_token_broadpeak_get_var(
 	if (session_end == NGX_ERROR)
 	{
 		return NGX_ERROR;
+	}
+
+	if (token->additional_querylist != NULL)
+	{
+		if (ngx_http_complex_value(r, token->additional_querylist, &additional_querylist) != NGX_OK)
+		{
+			return NGX_ERROR;
+		}
+	}
+	else
+	{
+		additional_querylist.data = NULL;
+		additional_querylist.len = 0;
 	}
 
 	// allocate the result
@@ -339,6 +361,8 @@ ngx_secure_token_broadpeak_get_var(
 		ngx_sprintf(temp_buf, "%08uxD", (uint32_t) session_end);
 		ngx_md5_update(&md5, temp_buf, sizeof(uint32_t) * 2);
 	}
+
+	ngx_md5_update(&md5, additional_querylist.data, additional_querylist.len);
 
 	ngx_md5_final(md5hash_buf, &md5);
 

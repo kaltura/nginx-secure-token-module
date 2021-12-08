@@ -275,6 +275,14 @@ Sets the start time of the session, required for catchup. The parameter value ca
 
 Sets the end time of the session, required for catchup. The parameter value can contain variables.
 
+#### additional_querylist
+* **syntax**: `additional_querylist expr`
+* **default**: `N/A`
+
+Sets the primary token value, the value needs to be a list of name=value pairs without any separator.
+For example, "ip=${arg_ip}account=${arg_account}device=${arg_device}".
+The parameter value can contain variables.
+
 ### URI encryption parameters
 
 #### secure_token_encrypt_uri
