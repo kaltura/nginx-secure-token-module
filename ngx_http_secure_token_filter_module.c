@@ -362,93 +362,147 @@ ngx_http_secure_token_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
 	return NGX_CONF_OK;
 }
 
+#if (nginx_version >= 1023000)
+static ngx_table_elt_t *
+ngx_http_secure_token_push_cache_control(ngx_http_request_t *r)
+{
+	ngx_table_elt_t  *cc;
+
+	cc = r->headers_out.cache_control;
+
+	if (cc == NULL) {
+
+		cc = ngx_list_push(&r->headers_out.headers);
+		if (cc == NULL) {
+			return NULL;
+		}
+
+		r->headers_out.cache_control = cc;
+		cc->next = NULL;
+
+		cc->hash = 1;
+		ngx_str_set(&cc->key, "Cache-Control");
+
+	} else {
+		for (cc = cc->next; cc; cc = cc->next) {
+			cc->hash = 0;
+		}
+
+		cc = r->headers_out.cache_control;
+		cc->next = NULL;
+	}
+
+	return cc;
+}
+#else
+static ngx_table_elt_t *
+ngx_http_secure_token_push_cache_control(ngx_http_request_t *r)
+{
+	ngx_uint_t        i;
+	ngx_table_elt_t  *cc, **ccp;
+
+	ccp = r->headers_out.cache_control.elts;
+
+	if (ccp == NULL) {
+
+		if (ngx_array_init(&r->headers_out.cache_control, r->pool,
+			1, sizeof(ngx_table_elt_t *))
+			!= NGX_OK)
+		{
+			return NULL;
+		}
+
+		ccp = ngx_array_push(&r->headers_out.cache_control);
+		if (ccp == NULL) {
+			return NULL;
+		}
+
+		cc = ngx_list_push(&r->headers_out.headers);
+		if (cc == NULL) {
+			return NULL;
+		}
+
+		cc->hash = 1;
+		ngx_str_set(&cc->key, "Cache-Control");
+		*ccp = cc;
+
+	} else {
+		for (i = 1; i < r->headers_out.cache_control.nelts; i++) {
+			ccp[i]->hash = 0;
+		}
+
+		cc = ccp[0];
+	}
+
+	return cc;
+}
+#endif
+
 // a run down version of ngx_http_set_expires with a few changes
 // (can't use the existing code since the function is static)
 static ngx_int_t
 ngx_http_secure_token_set_expires(ngx_http_request_t *r, time_t expires_time, ngx_str_t* cache_scope)
 {
-    size_t            len;
-    time_t            max_age;
-    ngx_uint_t        i;
-    ngx_table_elt_t  *expires, *cc, **ccp;
+	size_t            len;
+	time_t            max_age;
+	ngx_table_elt_t  *e, *cc;
 
-    expires = r->headers_out.expires;
+	e = r->headers_out.expires;
 
-    if (expires == NULL) {
+	if (e == NULL) {
 
-        expires = ngx_list_push(&r->headers_out.headers);
-        if (expires == NULL) {
-            return NGX_ERROR;
-        }
+		e = ngx_list_push(&r->headers_out.headers);
+		if (e == NULL) {
+			return NGX_ERROR;
+		}
 
-        r->headers_out.expires = expires;
+		r->headers_out.expires = e;
+#if (nginx_version >= 1023000)
+		e->next = NULL;
+#endif
 
-        expires->hash = 1;
-        ngx_str_set(&expires->key, "Expires");
-    }
+		e->hash = 1;
+		ngx_str_set(&e->key, "Expires");
+	}
 
-    ccp = r->headers_out.cache_control.elts;
+	cc = ngx_http_secure_token_push_cache_control(r);
+	if (cc == NULL) {
+		e->hash = 0;
+		return NGX_ERROR;
+	}
 
-    if (ccp == NULL) {
+	if (expires_time == 0) {
+		ngx_str_set(&e->value, "Sun, 19 Nov 2000 08:52:00 GMT");
+		ngx_str_set(&cc->value, "no-store, no-cache, must-revalidate, post-check=0, pre-check=0");
+		return NGX_OK;
+	}
 
-        if (ngx_array_init(&r->headers_out.cache_control, r->pool,
-                           1, sizeof(ngx_table_elt_t *))
-            != NGX_OK)
-        {
-            return NGX_ERROR;
-        }
+	len = sizeof("Mon, 28 Sep 1970 06:00:00 GMT");
+	e->value.len = len - 1;
 
-        ccp = ngx_array_push(&r->headers_out.cache_control);
-        if (ccp == NULL) {
-            return NGX_ERROR;
-        }
-
-        cc = ngx_list_push(&r->headers_out.headers);
-        if (cc == NULL) {
-            return NGX_ERROR;
-        }
-
-        cc->hash = 1;
-        ngx_str_set(&cc->key, "Cache-Control");
-        *ccp = cc;
-
-    } else {
-        for (i = 1; i < r->headers_out.cache_control.nelts; i++) {
-            ccp[i]->hash = 0;
-        }
-
-        cc = ccp[0];
-    }
-	
-    if (expires_time == 0) {
-		ngx_str_set(&expires->value, "Sun, 19 Nov 2000 08:52:00 GMT");
-        ngx_str_set(&cc->value, "no-store, no-cache, must-revalidate, post-check=0, pre-check=0");
-        return NGX_OK;
-    }
-
-    len = sizeof("Mon, 28 Sep 1970 06:00:00 GMT");
-    expires->value.len = len - 1;
-
-    expires->value.data = ngx_pnalloc(r->pool, len);
-    if (expires->value.data == NULL) {
-        return NGX_ERROR;
-    }
+	e->value.data = ngx_pnalloc(r->pool, len);
+	if (e->value.data == NULL) {
+		e->hash = 0;
+		cc->hash = 0;
+		return NGX_ERROR;
+	}
 
 	max_age = expires_time;
 	expires_time += ngx_time();
 
-    ngx_http_time(expires->value.data, expires_time);
+	ngx_http_time(e->value.data, expires_time);
 
-    cc->value.data = ngx_pnalloc(r->pool,
-                                 sizeof(CACHE_CONTROL_FORMAT) + cache_scope->len + NGX_TIME_T_LEN + 1);
-    if (cc->value.data == NULL) {
-        return NGX_ERROR;
-    }
+	cc->value.data = ngx_pnalloc(r->pool,
+								 sizeof(CACHE_CONTROL_FORMAT) + cache_scope->len + NGX_TIME_T_LEN + 1);
+	if (cc->value.data == NULL) {
+		cc->hash = 0;
+		return NGX_ERROR;
+	}
 
-    cc->value.len = ngx_sprintf(cc->value.data, CACHE_CONTROL_FORMAT, cache_scope, max_age)
-                    - cc->value.data;
+	cc->value.len = ngx_sprintf(cc->value.data, CACHE_CONTROL_FORMAT, cache_scope, max_age)
+					- cc->value.data;
 
-    return NGX_OK;
+	return NGX_OK;
 }
 
 static ngx_int_t
@@ -497,6 +551,9 @@ ngx_http_secure_token_call_next_filter(
 			r->headers_out.last_modified = h;
 		}
 		h->hash = 1;
+#if (nginx_version >= 1023000)
+		h->next = NULL;
+#endif
 		h->key.data = (u_char*)"Last-Modified";
 		h->key.len = sizeof("Last-Modified") - 1;
 		h->value = *last_modified_str;
@@ -678,6 +735,9 @@ ngx_http_secure_token_header_filter(ngx_http_request_t *r)
 	}
 
 	set_cookie->hash = 1;
+#if (nginx_version >= 1023000)
+	set_cookie->next = NULL;
+#endif
 	ngx_str_set(&set_cookie->key, "Set-Cookie");
 	set_cookie->value = token;
 
