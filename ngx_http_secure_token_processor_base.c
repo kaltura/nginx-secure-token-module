@@ -131,6 +131,7 @@ ngx_http_secure_token_url_state_machine_init(
 	ctx->state = STATE_URL_SCHEME;
 	ctx->scheme_pos = 0;
 	ctx->scheme_delim_pos = 0;
+	ctx->last_url_char = '\0';
 	ctx->tokenize = tokenize;
 	ctx->url_end_state = url_end_state;
 	ctx->url_end_char = url_end_char;
