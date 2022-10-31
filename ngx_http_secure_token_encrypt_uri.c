@@ -216,14 +216,19 @@ ngx_http_secure_token_decrypt_uri(ngx_http_request_t *r)
 
 	if (!conf->processor_conf.encrypt_uri)
 	{
-		return NGX_OK;
+		return NGX_DECLINED;
 	}
 	
 	// get the encrypted part
 	rc = ngx_http_secure_token_get_encryted_part(r, &r->uri, 0, &encrypt_uri_part, &uri_prefix_len, &uri_suffix_len);
-	if (rc != NGX_OK || encrypt_uri_part.len == 0)
+	if (rc != NGX_OK)
 	{
 		return rc;
+	}
+
+	if (encrypt_uri_part.len == 0)
+	{
+		return NGX_DECLINED;
 	}
 
 	// allocate buffers
@@ -323,7 +328,7 @@ ngx_http_secure_token_decrypt_uri(ngx_http_request_t *r)
 	// free temporary buffer
 	ngx_pfree(r->pool, decrypted.data);
 
-	return NGX_OK;
+	return NGX_DECLINED;
 }
 
 ngx_int_t
