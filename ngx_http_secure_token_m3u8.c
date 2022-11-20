@@ -4,7 +4,9 @@
 static ngx_str_t uri_tags[] = {
 	ngx_string("EXT-X-MAP"),
 	ngx_string("EXT-X-KEY"),
+	ngx_string("EXT-X-PART"),
 	ngx_string("EXT-X-MEDIA"),
+	ngx_string("EXT-X-PRELOAD-HINT"),
 	ngx_string("EXT-X-I-FRAME-STREAM-INF"),
 	ngx_null_string,
 };
