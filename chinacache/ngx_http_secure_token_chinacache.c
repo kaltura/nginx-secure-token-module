@@ -78,10 +78,7 @@ ngx_secure_token_chinacache_get_var(
 	const EVP_MD* digest;
 	ngx_str_t hash_base64_str;
 	unsigned hash_len;
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
-	HMAC_CTX hmac_buf;
-#endif
-	HMAC_CTX* hmac;
+	ngx_str_t signed_part;
 	ngx_str_t expiry_str;
 	ngx_str_t hash_str;
 	ngx_str_t acl;
@@ -127,25 +124,21 @@ ngx_secure_token_chinacache_get_var(
 		return NGX_ERROR;
 	}
 	
-#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
-	hmac = HMAC_CTX_new();
-	if (hmac == NULL)
+	p = ngx_pnalloc(r->pool, acl.len + expiry_str.len);
+	if (p == NULL)
 	{
 		return NGX_ERROR;
 	}
-#else
-	hmac = &hmac_buf;
-	HMAC_CTX_init(hmac);
-#endif
-	HMAC_Init_ex(hmac, token->key.data, token->key.len, digest, NULL);
-	HMAC_Update(hmac, acl.data, acl.len);
-	HMAC_Update(hmac, expiry_str.data, expiry_str.len);
-	HMAC_Final(hmac, hash_buf, &hash_len);
-#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
-	HMAC_CTX_free(hmac);
-#else
-	HMAC_CTX_cleanup(hmac);
-#endif
+
+	signed_part.data = p;
+	p = ngx_copy(p, acl.data, acl.len);
+	p = ngx_copy(p, expiry_str.data, expiry_str.len);
+	signed_part.len = p - signed_part.data;
+
+	if (HMAC(digest, token->key.data, token->key.len, signed_part.data, signed_part.len, hash_buf, &hash_len) == NULL)
+	{
+		return NGX_ERROR;
+	}
 
 	// base64 encode
 	hash_str.data = hash_buf;

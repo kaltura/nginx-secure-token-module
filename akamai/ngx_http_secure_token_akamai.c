@@ -76,10 +76,6 @@ ngx_secure_token_akamai_get_var(
 	time_t end_time;
 	u_char hash[EVP_MAX_MD_SIZE];
 	unsigned hash_len;
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
-	HMAC_CTX hmac_buf;
-#endif
-	HMAC_CTX* hmac;
 	ngx_str_t signed_part;
 	ngx_str_t ip_address;
 	ngx_str_t acl;
@@ -146,24 +142,10 @@ ngx_secure_token_akamai_get_var(
 	p = ngx_sprintf(p, TOKEN_FORMAT, start_time, end_time, &acl);
 	signed_part.len = p - signed_part.data;
 
-#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
-	hmac = HMAC_CTX_new();
-	if (hmac == NULL)
+	if (HMAC(EVP_sha256(), token->key.data, token->key.len, signed_part.data, signed_part.len, hash, &hash_len) == NULL)
 	{
 		return NGX_ERROR;
 	}
-#else
-	hmac = &hmac_buf;
-	HMAC_CTX_init(hmac);
-#endif
-	HMAC_Init_ex(hmac, token->key.data, token->key.len, EVP_sha256(), NULL);
-	HMAC_Update(hmac, signed_part.data, signed_part.len);
-	HMAC_Final(hmac, hash, &hash_len);
-#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
-	HMAC_CTX_free(hmac);
-#else
-	HMAC_CTX_cleanup(hmac);
-#endif
 
 	p = ngx_copy(p, HMAC_PARAM, sizeof(HMAC_PARAM) - 1);
 	p = ngx_hex_dump(p, hash, hash_len);
