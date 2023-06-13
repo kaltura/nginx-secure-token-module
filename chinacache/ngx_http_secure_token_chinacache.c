@@ -72,12 +72,8 @@ ngx_secure_token_chinacache_get_var(
 	uintptr_t data)
 {
 	ngx_secure_token_chinacache_token_t* token = (void*)data;
-	const EVP_MD* digest;
 	ngx_str_t hash_base64_str;
 	unsigned hash_len;
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
-
-#endif
 
 	ngx_str_t expiry_str;
 	ngx_str_t hash_str;
@@ -113,28 +109,16 @@ ngx_secure_token_chinacache_get_var(
 	switch (token->algorithm)
 	{
 	case ALGO_HMACSHA1:
-		digest = EVP_sha1();
+		
 		break;
 		
 	case ALGO_HMACSHA256:
-		digest = EVP_sha256();
 		break;
 		
 	default:
 		return NGX_ERROR;
 	}
 	
-#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
-	
-#else
-
-#endif
-
-#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
-
-#else
-#endif
-
 	// base64 encode
 	hash_str.data = hash_buf;
 	hash_str.len = hash_len;

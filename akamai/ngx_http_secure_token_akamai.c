@@ -71,10 +71,9 @@ ngx_secure_token_akamai_get_var(
 	ngx_secure_token_akamai_token_t* token = (void*)data;
 	time_t start_time;
 	time_t end_time;
-	u_char hash[EVP_MAX_MD_SIZE];
+	u_char hash[10];
 	unsigned hash_len;
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
-#endif
+
 	ngx_str_t signed_part;
 	ngx_str_t ip_address;
 	ngx_str_t acl;
@@ -91,7 +90,7 @@ ngx_secure_token_akamai_get_var(
 
 	// get the result size
 	result_size = token->param_name.len + 1 + sizeof(TOKEN_FORMAT) +
-		2 * NGX_INT32_LEN + acl.len + sizeof(HMAC_PARAM) - 1 + EVP_MAX_MD_SIZE * 2 + 1;
+		2 * NGX_INT32_LEN + acl.len + sizeof(HMAC_PARAM) - 1 + 10 * 2 + 1;
 
 	// get the ip address
 	if (token->ip_address != NULL)
@@ -140,19 +139,6 @@ ngx_secure_token_akamai_get_var(
 	}
 	p = ngx_sprintf(p, TOKEN_FORMAT, start_time, end_time, &acl);
 	signed_part.len = p - signed_part.data;
-
-#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
-
-#else
-
-#endif
-
-
-#if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
-
-#else
-
-#endif
 
 	p = ngx_copy(p, HMAC_PARAM, sizeof(HMAC_PARAM) - 1);
 	p = ngx_hex_dump(p, hash, hash_len);
