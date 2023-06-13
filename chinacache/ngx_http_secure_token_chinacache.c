@@ -2,9 +2,6 @@
 #include "../ngx_http_secure_token_filter_module.h"
 #include "../ngx_http_secure_token_utils.h"
 
-#include <openssl/hmac.h>
-#include <openssl/evp.h>
-
 // constants
 #define TOKEN_PART1 "ACL="
 #define TOKEN_PART2 "&P1=%V&P2=%V&P3=%uD&P4="
@@ -79,9 +76,9 @@ ngx_secure_token_chinacache_get_var(
 	ngx_str_t hash_base64_str;
 	unsigned hash_len;
 #if (OPENSSL_VERSION_NUMBER < 0x10100000L)
-	HMAC_CTX hmac_buf;
+
 #endif
-	HMAC_CTX* hmac;
+
 	ngx_str_t expiry_str;
 	ngx_str_t hash_str;
 	ngx_str_t acl;
@@ -128,23 +125,14 @@ ngx_secure_token_chinacache_get_var(
 	}
 	
 #if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
-	hmac = HMAC_CTX_new();
-	if (hmac == NULL)
-	{
-		return NGX_ERROR;
-	}
+	
 #else
-	hmac = &hmac_buf;
-	HMAC_CTX_init(hmac);
+
 #endif
-	HMAC_Init_ex(hmac, token->key.data, token->key.len, digest, NULL);
-	HMAC_Update(hmac, acl.data, acl.len);
-	HMAC_Update(hmac, expiry_str.data, expiry_str.len);
-	HMAC_Final(hmac, hash_buf, &hash_len);
+
 #if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
-	HMAC_CTX_free(hmac);
+
 #else
-	HMAC_CTX_cleanup(hmac);
 #endif
 
 	// base64 encode

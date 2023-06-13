@@ -2,9 +2,6 @@
 #include "../ngx_http_secure_token_filter_module.h"
 #include "../ngx_http_secure_token_utils.h"
 
-#include <openssl/hmac.h>
-#include <openssl/evp.h>
-
 // constants
 #define TOKEN_FORMAT "st=%uD~exp=%uD~acl=%V"
 #define IP_TOKEN_PARAM "ip=%V~"
@@ -77,9 +74,7 @@ ngx_secure_token_akamai_get_var(
 	u_char hash[EVP_MAX_MD_SIZE];
 	unsigned hash_len;
 #if (OPENSSL_VERSION_NUMBER < 0x10100000L)
-	HMAC_CTX hmac_buf;
 #endif
-	HMAC_CTX* hmac;
 	ngx_str_t signed_part;
 	ngx_str_t ip_address;
 	ngx_str_t acl;
@@ -147,22 +142,16 @@ ngx_secure_token_akamai_get_var(
 	signed_part.len = p - signed_part.data;
 
 #if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
-	hmac = HMAC_CTX_new();
-	if (hmac == NULL)
-	{
-		return NGX_ERROR;
-	}
+
 #else
-	hmac = &hmac_buf;
-	HMAC_CTX_init(hmac);
+
 #endif
-	HMAC_Init_ex(hmac, token->key.data, token->key.len, EVP_sha256(), NULL);
-	HMAC_Update(hmac, signed_part.data, signed_part.len);
-	HMAC_Final(hmac, hash, &hash_len);
+
+
 #if (OPENSSL_VERSION_NUMBER >= 0x10100000L)
-	HMAC_CTX_free(hmac);
+
 #else
-	HMAC_CTX_cleanup(hmac);
+
 #endif
 
 	p = ngx_copy(p, HMAC_PARAM, sizeof(HMAC_PARAM) - 1);
